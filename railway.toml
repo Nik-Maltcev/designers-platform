@@ -1,0 +1,5 @@
+[build]
+buildCommand = "cd site && npm install && npx prisma generate && npm run build"
+
+[deploy]
+startCommand = "cd site && npm start"
