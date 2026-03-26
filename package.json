@@ -1,0 +1,11 @@
+{
+  "name": "designers-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "install:site": "cd site && npm install",
+    "build": "cd site && npx prisma generate && npm run build",
+    "start": "cd site && npm start",
+    "dev": "cd site && npm run dev"
+  }
+}
