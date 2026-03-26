@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Post Project - Architectural Curator</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-fixed": "#0f1e20",
+              "secondary": "#526163",
+              "surface": "#f8f9fa",
+              "on-tertiary-fixed": "#2d1600",
+              "on-tertiary": "#ffffff",
+              "primary": "#003336",
+              "tertiary": "#472500",
+              "on-primary-fixed-variant": "#074f54",
+              "surface-tint": "#2a676c",
+              "secondary-fixed": "#d5e5e8",
+              "on-primary": "#ffffff",
+              "primary-fixed-dim": "#96d1d6",
+              "error-container": "#ffdad6",
+              "inverse-primary": "#96d1d6",
+              "surface-dim": "#d9dadb",
+              "tertiary-fixed": "#ffdcc0",
+              "on-primary-fixed": "#002022",
+              "on-error": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "secondary-fixed-dim": "#b9c9cc",
+              "tertiary-container": "#663800",
+              "inverse-on-surface": "#f0f1f2",
+              "on-surface-variant": "#404849",
+              "surface-container-high": "#e7e8e9",
+              "on-secondary-fixed-variant": "#3b494b",
+              "on-background": "#191c1d",
+              "outline": "#707979",
+              "on-secondary-container": "#586769",
+              "surface-container-highest": "#e1e3e4",
+              "surface-container": "#edeeef",
+              "surface-container-low": "#f3f4f5",
+              "on-error-container": "#93000a",
+              "tertiary-fixed-dim": "#ffb876",
+              "primary-container": "#004b50",
+              "surface-bright": "#f8f9fa",
+              "on-tertiary-container": "#fc992c",
+              "primary-fixed": "#b1edf2",
+              "outline-variant": "#bfc8c9",
+              "inverse-surface": "#2e3132",
+              "surface-variant": "#e1e3e4",
+              "secondary-container": "#d5e5e8",
+              "error": "#ba1a1a",
+              "on-tertiary-fixed-variant": "#6b3b00",
+              "on-primary-container": "#7fbabf",
+              "on-surface": "#191c1d",
+              "background": "#f8f9fa",
+              "on-secondary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-effect {
+        backdrop-filter: blur(20px);
+        background-color: rgba(255, 255, 255, 0.8);
+      }
+      .primary-gradient {
+        background: linear-gradient(135deg, #003336 0%, #004b50 100%);
+      }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- TopNavBar (Shared Component) -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+<div class="flex items-center justify-between px-8 py-4 max-w-full mx-auto">
+<div class="text-2xl font-bold tracking-tighter text-teal-950 dark:text-teal-100 font-headline">
+                Architectural Curator
+            </div>
+<div class="hidden md:flex items-center space-x-8 font-headline text-sm font-semibold tracking-tight">
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">Contractors</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">Designers</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">Pricing</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">My Account</a>
+<button class="primary-gradient text-on-primary px-6 py-2 rounded-md font-bold text-teal-900 dark:text-teal-400 border-b-2 border-teal-900 dark:border-teal-400 pb-1">
+                    Post Project
+                </button>
+</div>
+<div class="md:hidden">
+<span class="material-symbols-outlined text-primary">menu</span>
+</div>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="pt-24 pb-20 px-6 max-w-7xl mx-auto">
+<!-- Hero Section -->
+<header class="mb-16 mt-8 max-w-3xl">
+<h1 class="font-headline font-extrabold text-5xl lg:text-6xl text-primary leading-tight mb-6">
+                Получите 3-5 подрядчиков под ваш проект за 48 часов
+            </h1>
+<p class="font-body text-xl text-on-surface-variant leading-relaxed opacity-80">
+                Подберем компании по категории, бюджету и типу объекта
+            </p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+<!-- Left Column: Form -->
+<div class="lg:col-span-8">
+<form class="space-y-12">
+<!-- Section: Role & Category -->
+<section class="bg-surface-container-low p-8 rounded-xl space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-3">
+<label class="block font-headline font-bold text-sm uppercase tracking-widest text-primary">Who are you?</label>
+<div class="relative">
+<select class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+<option>Designer</option>
+<option>Architect</option>
+<option>Procurement Specialist</option>
+<option>Property Owner</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="space-y-3">
+<label class="block font-headline font-bold text-sm uppercase tracking-widest text-primary">What to select?</label>
+<div class="relative">
+<select class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+<option>Furniture</option>
+<option>Lighting</option>
+<option>Finishing Materials</option>
+<option>Engineering Systems</option>
+<option>Complex Fit-out</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: Object Details -->
+<section class="space-y-8">
+<h3 class="font-headline font-bold text-2xl text-primary">Object Characteristics</h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Object location</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Moscow, Russia" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Object type</label>
+<select class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+<option>Appartment</option>
+<option>House</option>
+<option>Office</option>
+<option>Retail</option>
+<option>Horeca</option>
+</select>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Project level</label>
+<div class="flex bg-surface-container-low rounded-lg p-1 h-[56px]">
+<button class="flex-1 rounded-md text-xs font-bold text-on-surface-variant hover:bg-white transition-all" type="button">Medium</button>
+<button class="flex-1 rounded-md text-xs font-bold bg-white text-primary shadow-sm" type="button">Medium+</button>
+<button class="flex-1 rounded-md text-xs font-bold text-on-surface-variant hover:bg-white transition-all" type="button">Premium</button>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<label class="block font-headline font-bold text-sm uppercase tracking-widest text-primary">Urgency</label>
+<div class="flex flex-wrap gap-3">
+<label class="cursor-pointer group">
+<input class="hidden peer" name="urgency" type="radio"/>
+<span class="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Urgent</span>
+</label>
+<label class="cursor-pointer group">
+<input checked="" class="hidden peer" name="urgency" type="radio"/>
+<span class="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">2 weeks</span>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="urgency" type="radio"/>
+<span class="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Month</span>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="urgency" type="radio"/>
+<span class="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Later</span>
+</label>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Project description</label>
+<textarea class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 resize-none" placeholder="Describe specific requirements, style preferences, or technical constraints..." rows="4"></textarea>
+</div>
+</section>
+<!-- Section: Upload -->
+<section class="bg-surface-container-lowest p-8 rounded-xl border-2 border-dashed border-outline-variant/30 text-center">
+<div class="max-w-xs mx-auto space-y-4">
+<span class="material-symbols-outlined text-5xl text-primary/40">cloud_upload</span>
+<div class="space-y-1">
+<h4 class="font-bold text-lg">File upload</h4>
+<p class="text-sm text-on-surface-variant">Drawings, Visuals, Photos</p>
+</div>
+<button class="text-primary font-bold text-sm underline underline-offset-4" type="button">Browse Files</button>
+</div>
+</section>
+<!-- Section: Contact Info -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Name</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Konstantin" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Phone</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="+7 (___) ___-__-__" type="tel"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold text-outline uppercase">Email</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="k.arch@studio.com" type="email"/>
+</div>
+</section>
+<!-- Section: Submit & Privacy -->
+<footer class="space-y-8 pt-8 border-t border-outline-variant/20">
+<div class="flex items-start gap-4 p-4 bg-secondary-container/30 rounded-lg">
+<div class="flex items-center h-6">
+<input class="w-5 h-5 text-primary border-outline rounded focus:ring-primary" type="checkbox"/>
+</div>
+<label class="text-sm font-medium leading-relaxed">
+                                Don't show my phone to contractors without consent. 
+                                <span class="block text-xs text-on-surface-variant mt-1">We will only share your contact after you approve a specific curator's offer.</span>
+</label>
+</div>
+<button class="w-full md:w-auto primary-gradient text-on-primary px-12 py-5 rounded-lg font-headline font-bold text-xl shadow-xl hover:scale-[1.02] transition-transform" type="submit">
+                            Отправить проект на подбор
+                        </button>
+</footer>
+</form>
+</div>
+<!-- Right Column: Context/Trust -->
+<aside class="lg:col-span-4 space-y-8">
+<div class="sticky top-32 space-y-8">
+<!-- Info Card -->
+<div class="bg-primary text-on-primary p-8 rounded-xl space-y-6">
+<h4 class="font-headline font-bold text-2xl">How it works</h4>
+<div class="space-y-6">
+<div class="flex gap-4">
+<span class="bg-primary-container text-on-primary-container w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">1</span>
+<p class="text-sm opacity-90">Fill the form with your project details and requirements.</p>
+</div>
+<div class="flex gap-4">
+<span class="bg-primary-container text-on-primary-container w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">2</span>
+<p class="text-sm opacity-90">Our curators manually review and match with top verified contractors.</p>
+</div>
+<div class="flex gap-4">
+<span class="bg-primary-container text-on-primary-container w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">3</span>
+<p class="text-sm opacity-90">Receive 3-5 personalized offers within 48 hours.</p>
+</div>
+</div>
+</div>
+<!-- Statistics/Verification -->
+<div class="bg-surface-container-low p-8 rounded-xl space-y-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-headline font-bold text-lg">Verified Ecosystem</span>
+</div>
+<ul class="space-y-4">
+<li class="flex items-center justify-between text-sm">
+<span class="text-on-surface-variant">Active Contractors</span>
+<span class="font-bold">2,400+</span>
+</li>
+<li class="flex items-center justify-between text-sm">
+<span class="text-on-surface-variant">Selection Accuracy</span>
+<span class="font-bold text-primary">98.4%</span>
+</li>
+<li class="flex items-center justify-between text-sm">
+<span class="text-on-surface-variant">Avg. Response Time</span>
+<span class="font-bold">14 hrs</span>
+</li>
+</ul>
+</div>
+<!-- Support Card -->
+<div class="p-6 bg-white rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 bg-secondary-fixed rounded-full overflow-hidden">
+<img alt="Curator Support" class="w-full h-full object-cover" data-alt="Portrait of a professional support manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP3tHn44jcooANPCBa3wgTYQ48wud3NXBPufF3SOk47uMf2p4MRCUt0SeA9IGBX4ZtVyFFKgeiQZrCKiEJssGLHAJ7TNTk4Tq2r_vfuq-7Utf8JC4GjmJfnOEW9I5J_wTdU5ljcwgg0KapoXPVeWUExrfOmU-p9Vo9WqZDzaZZtgXRs9aU0O0oASCT6K2LohXPAmRBvflcEbPQ7vWRKBf2BbSeS6MoAWAcrHuIiHLWHJ-J-Pn9sH82Youix2UuSURHhfNLDwAor3Da"/>
+</div>
+<div>
+<p class="text-xs font-bold text-outline uppercase tracking-wider">Need help?</p>
+<p class="text-sm font-semibold">Talk to a curator now</p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="w-full mt-auto py-12 px-8 bg-slate-50 dark:bg-slate-950 border-t border-slate-200/50 dark:border-slate-800/50">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl mx-auto">
+<div class="space-y-4">
+<p class="font-inter text-xs text-slate-500 leading-relaxed max-w-md">
+                    © 2024 ProjectList. Data processed on secure Russian-based servers in compliance with local regulations.
+                </p>
+</div>
+<div class="flex flex-wrap gap-x-8 gap-y-4 md:justify-end items-center">
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 dark:hover:text-teal-100 transition-colors" href="#">Terms of Service</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 dark:hover:text-teal-100 transition-colors" href="#">Privacy Policy</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 dark:hover:text-teal-100 transition-colors" href="#">Contact Support</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 dark:hover:text-teal-100 transition-colors" href="#">Legal Status</a>
+</div>
+</div>
+</footer>
+</body></html>

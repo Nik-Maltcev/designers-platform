@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-on-secondary-fixed: #0f1e20;
+  --color-secondary: #526163;
+  --color-surface: #f8f9fa;
+  --color-on-tertiary-fixed: #2d1600;
+  --color-on-tertiary: #ffffff;
+  --color-primary: #003336;
+  --color-tertiary: #472500;
+  --color-on-primary-fixed-variant: #074f54;
+  --color-surface-tint: #2a676c;
+  --color-secondary-fixed: #d5e5e8;
+  --color-on-primary: #ffffff;
+  --color-primary-fixed-dim: #96d1d6;
+  --color-error-container: #ffdad6;
+  --color-inverse-primary: #96d1d6;
+  --color-surface-dim: #d9dadb;
+  --color-tertiary-fixed: #ffdcc0;
+  --color-on-primary-fixed: #002022;
+  --color-on-error: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-secondary-fixed-dim: #b9c9cc;
+  --color-tertiary-container: #663800;
+  --color-inverse-on-surface: #f0f1f2;
+  --color-on-surface-variant: #404849;
+  --color-surface-container-high: #e7e8e9;
+  --color-on-secondary-fixed-variant: #3b494b;
+  --color-on-background: #191c1d;
+  --color-outline: #707979;
+  --color-on-secondary-container: #586769;
+  --color-surface-container-highest: #e1e3e4;
+  --color-surface-container: #edeeef;
+  --color-surface-container-low: #f3f4f5;
+  --color-on-error-container: #93000a;
+  --color-tertiary-fixed-dim: #ffb876;
+  --color-primary-container: #004b50;
+  --color-surface-bright: #f8f9fa;
+  --color-on-tertiary-container: #fc992c;
+  --color-primary-fixed: #b1edf2;
+  --color-outline-variant: #bfc8c9;
+  --color-inverse-surface: #2e3132;
+  --color-surface-variant: #e1e3e4;
+  --color-secondary-container: #d5e5e8;
+  --color-error: #ba1a1a;
+  --color-on-tertiary-fixed-variant: #6b3b00;
+  --color-on-primary-container: #7fbabf;
+  --color-on-surface: #191c1d;
+  --color-background: #f8f9fa;
+  --color-on-secondary: #ffffff;
+
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-headline);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #003336 0%, #004b50 100%);
+}
+
+.glass-sidebar {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+}

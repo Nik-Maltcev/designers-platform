@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Подрядчики и производства | ProjectList Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-fixed": "#0f1e20",
+              "secondary": "#526163",
+              "surface": "#f8f9fa",
+              "on-tertiary-fixed": "#2d1600",
+              "on-tertiary": "#ffffff",
+              "primary": "#003336",
+              "tertiary": "#472500",
+              "on-primary-fixed-variant": "#074f54",
+              "surface-tint": "#2a676c",
+              "secondary-fixed": "#d5e5e8",
+              "on-primary": "#ffffff",
+              "primary-fixed-dim": "#96d1d6",
+              "error-container": "#ffdad6",
+              "inverse-primary": "#96d1d6",
+              "surface-dim": "#d9dadb",
+              "tertiary-fixed": "#ffdcc0",
+              "on-primary-fixed": "#002022",
+              "on-error": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "secondary-fixed-dim": "#b9c9cc",
+              "tertiary-container": "#663800",
+              "inverse-on-surface": "#f0f1f2",
+              "on-surface-variant": "#404849",
+              "surface-container-high": "#e7e8e9",
+              "on-secondary-fixed-variant": "#3b494b",
+              "on-background": "#191c1d",
+              "outline": "#707979",
+              "on-secondary-container": "#586769",
+              "surface-container-highest": "#e1e3e4",
+              "surface-container": "#edeeef",
+              "surface-container-low": "#f3f4f5",
+              "on-error-container": "#93000a",
+              "tertiary-fixed-dim": "#ffb876",
+              "primary-container": "#004b50",
+              "surface-bright": "#f8f9fa",
+              "on-tertiary-container": "#fc992c",
+              "primary-fixed": "#b1edf2",
+              "outline-variant": "#bfc8c9",
+              "inverse-surface": "#2e3132",
+              "surface-variant": "#e1e3e4",
+              "secondary-container": "#d5e5e8",
+              "error": "#ba1a1a",
+              "on-tertiary-fixed-variant": "#6b3b00",
+              "on-primary-container": "#7fbabf",
+              "on-surface": "#191c1d",
+              "background": "#f8f9fa",
+              "on-secondary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-sidebar {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top Navigation -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-8 py-4 max-w-full mx-auto">
+<div class="text-2xl font-bold tracking-tighter text-teal-950 dark:text-teal-100 font-headline">Architectural Curator</div>
+<div class="hidden md:flex items-center gap-8 font-manrope text-sm font-semibold tracking-tight">
+<a class="text-teal-900 dark:text-teal-400 border-b-2 border-teal-900 dark:border-teal-400 pb-1" href="#">Contractors</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">Designers</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">Pricing</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-teal-800 transition-colors" href="#">My Account</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-5 py-2 rounded-md font-semibold text-sm hover:opacity-90 transition-all active:scale-95 duration-150 ease-in-out">
+                Post Project
+            </button>
+</div>
+</nav>
+<div class="flex min-h-screen pt-20">
+<!-- Sidebar Navigation (Desktop) -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col p-6 bg-slate-50 dark:bg-slate-950 pt-24 border-r border-slate-100 dark:border-slate-800">
+<div class="mb-10">
+<div class="text-xl font-black text-teal-900 dark:text-teal-100 font-headline mb-1">ProjectList Pro</div>
+<div class="text-xs text-slate-500 font-manrope">Verified Contractor</div>
+</div>
+<nav class="flex-1 space-y-2 font-manrope text-sm">
+<a class="flex items-center gap-3 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+                </a>
+<a class="flex items-center gap-3 p-3 bg-teal-100/50 dark:bg-teal-900/30 text-teal-900 dark:text-teal-200 font-bold rounded-lg translate-x-1" href="#">
+<span class="material-symbols-outlined">architecture</span> Projects
+                </a>
+<a class="flex items-center gap-3 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">mail</span> Messages
+                </a>
+<a class="flex items-center gap-3 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+                </a>
+</nav>
+<div class="mt-auto space-y-2 font-manrope text-sm">
+<button class="w-full bg-primary-container text-on-primary-container py-3 rounded-lg font-bold mb-4">New Project</button>
+<a class="flex items-center gap-3 p-2 text-slate-500 hover:text-teal-900" href="#"><span class="material-symbols-outlined">help</span> Help Center</a>
+<a class="flex items-center gap-3 p-2 text-slate-500 hover:text-teal-900" href="#"><span class="material-symbols-outlined">logout</span> Sign Out</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 lg:ml-64 px-8 pb-12">
+<!-- Header Section -->
+<header class="py-12 max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row justify-between items-end gap-8">
+<div class="space-y-4 max-w-2xl">
+<h1 class="text-6xl font-extrabold tracking-tighter font-headline text-primary">Подрядчики и производства</h1>
+<p class="text-body-sm text-on-surface-variant max-w-md">Найдите проверенных партнеров для реализации ваших самых смелых архитектурных и интерьерных идей.</p>
+</div>
+</div>
+<!-- Search and Controls -->
+<div class="mt-12 flex flex-col gap-6">
+<div class="relative w-full max-w-4xl">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-5 bg-surface-container-high rounded-xl border-none focus:ring-2 focus:ring-primary/40 transition-all font-body text-lg shadow-sm" placeholder="Например: корпусная мебель, загородные дома, Москва" type="text"/>
+</div>
+<div class="flex flex-wrap items-center gap-4 text-sm font-medium">
+<span class="text-on-surface-variant mr-2">Сортировать по:</span>
+<button class="px-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-full hover:bg-surface-container-low transition-colors">Сходство проектов</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded-full">Активность</button>
+<button class="px-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-full hover:bg-surface-container-low transition-colors">Масштаб</button>
+</div>
+</div>
+</header>
+<div class="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto items-start">
+<!-- Filters Sidebar -->
+<aside class="w-full lg:w-72 glass-sidebar sticky top-24 p-6 rounded-2xl shadow-sm space-y-8">
+<div>
+<h3 class="font-headline font-bold text-lg mb-5">Категория</h3>
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded-sm border-outline text-primary focus:ring-primary" type="checkbox"/>
+<span class="group-hover:text-primary transition-colors">Мебель</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="rounded-sm border-outline text-primary focus:ring-primary" type="checkbox"/>
+<span class="group-hover:text-primary transition-colors">Освещение</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded-sm border-outline text-primary focus:ring-primary" type="checkbox"/>
+<span class="group-hover:text-primary transition-colors">Отделка</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded-sm border-outline text-primary focus:ring-primary" type="checkbox"/>
+<span class="group-hover:text-primary transition-colors">Окна и двери</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-headline font-bold text-lg mb-5">Регион</h3>
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="border-outline text-primary focus:ring-primary" name="region" type="radio"/>
+<span>Москва</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="border-outline text-primary focus:ring-primary" name="region" type="radio"/>
+<span>МО</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="border-outline text-primary focus:ring-primary" name="region" type="radio"/>
+<span>Вся Россия</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-headline font-bold text-lg mb-5">Тип объекта</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Квартира</button>
+<button class="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-full text-xs font-semibold">Дом</button>
+<button class="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Офис</button>
+<button class="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Кафе</button>
+</div>
+</div>
+<div>
+<h3 class="font-headline font-bold text-lg mb-5">Сегмент</h3>
+<div class="space-y-2">
+<label class="flex justify-between items-center py-2 px-3 hover:bg-surface-container-low rounded-lg transition-all">
+<span class="text-sm">Medium+</span>
+<input checked="" class="rounded-full text-primary" type="checkbox"/>
+</label>
+<label class="flex justify-between items-center py-2 px-3 hover:bg-surface-container-low rounded-lg transition-all">
+<span class="text-sm">Premium</span>
+<input class="rounded-full text-primary" type="checkbox"/>
+</label>
+</div>
+</div>
+<div class="pt-4 space-y-3">
+<div class="flex items-center justify-between p-3 bg-primary-fixed/30 rounded-xl">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-sm font-bold text-on-primary-fixed-variant">Verified Only</span>
+</div>
+<div class="w-10 h-5 bg-primary rounded-full relative">
+<div class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Grid List -->
+<div class="flex-1 grid grid-cols-1 gap-10">
+<!-- Card 1 -->
+<article class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300 shadow-sm">
+<div class="flex flex-col md:flex-row p-8 gap-8">
+<div class="w-full md:w-64 space-y-6">
+<div class="space-y-2">
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">verified</span> Verified
+                                        </span>
+<span class="bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">Active</span>
+</div>
+<h2 class="text-2xl font-extrabold font-headline leading-tight">WoodLine Production</h2>
+<p class="text-sm text-on-surface-variant leading-relaxed">Корпусная мебель, Изделия из массива, Лестницы</p>
+<div class="flex items-center gap-1 text-xs text-outline pt-2">
+<span class="material-symbols-outlined text-sm">location_on</span>
+                                        Москва, Московская область
+                                    </div>
+</div>
+<div class="flex flex-col gap-3">
+<button class="w-full py-3 bg-primary text-on-primary font-bold rounded-lg text-sm transition-all hover:opacity-90 active:scale-95">Open Profile</button>
+<div class="flex gap-2">
+<button class="flex-1 py-3 bg-secondary-container text-on-secondary-container font-bold rounded-lg text-sm hover:bg-secondary-fixed transition-colors">Invite to bid</button>
+<button class="px-3 py-3 bg-surface-container rounded-lg text-primary hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined">bookmark</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex-1 grid grid-cols-2 gap-4">
+<div class="relative aspect-[4/5] rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Modern wooden kitchen cabinetry" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Modern custom wooden kitchen and minimal interior design" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRYIMmRh4umhUAYPZ1YoD_NrZXzDPvdnlFJnpZjC3qTspIu0TsuVmMYhozFG_eCLuncZ903V6YaKkYUhc0HzMz-n1Xdpw7L-m_F4NE5XodpbcCn_P7mxxbAsZ0E95_3bFQdOwyeMwNmK5YLQuhBVizLkLI2leDgHvDrDTU-zGMPaZPiUREeMDK9-cX_ECcyTLfgXnuNzB2k-VEMcdxawRQYmjcL-W2fSqT-8B-ScVlLChe_EZTRheujn2wfZJHPUE-AY6-YIKMvktR"/>
+<div class="absolute bottom-4 left-4 text-white text-[10px] font-bold bg-black/40 backdrop-blur-md px-2 py-1 rounded">VILLA MARIN</div>
+</div>
+<div class="relative aspect-[4/5] rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Dining table crafted from oak" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Close up of high-end handcrafted oak dining table" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP3tHn44jcooANPCBa3wgTYQ48wud3NXBPufF3SOk47uMf2p4MRCUt0SeA9IGBX4ZtVyFFKgeiQZrCKiEJssGLHAJ7TNTk4Tq2r_vfuq-7Utf8JC4GjmJfnOEW9I5J_wTdU5ljcwgg0KapoXPVeWUExrfOmU-p9Vo9WqZDzaZZtgXRs9aU0O0oASCT6K2LohXPAmRBvflcEbPQ7vWRKBf2BbSeS6MoAWAcrHuIiHLWHJ-J-Pn9sH82Youix2UuSURHhfNLDwAor3Da"/>
+<div class="absolute bottom-4 left-4 text-white text-[10px] font-bold bg-black/40 backdrop-blur-md px-2 py-1 rounded">LOFT APARTMENT</div>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2 -->
+<article class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300 shadow-sm">
+<div class="flex flex-col md:flex-row p-8 gap-8">
+<div class="w-full md:w-64 space-y-6">
+<div class="space-y-2">
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">verified</span> Verified
+                                        </span>
+</div>
+<h2 class="text-2xl font-extrabold font-headline leading-tight">Light Foundry Studio</h2>
+<p class="text-sm text-on-surface-variant leading-relaxed">Дизайнерское освещение, Латунь, Стекло</p>
+<div class="flex items-center gap-1 text-xs text-outline pt-2">
+<span class="material-symbols-outlined text-sm">location_on</span>
+                                        Санкт-Петербург, СНГ
+                                    </div>
+</div>
+<div class="flex flex-col gap-3">
+<button class="w-full py-3 bg-primary text-on-primary font-bold rounded-lg text-sm transition-all hover:opacity-90 active:scale-95">Open Profile</button>
+<div class="flex gap-2">
+<button class="flex-1 py-3 bg-secondary-container text-on-secondary-container font-bold rounded-lg text-sm hover:bg-secondary-fixed transition-colors">Invite to bid</button>
+<button class="px-3 py-3 bg-surface-container rounded-lg text-primary hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined">bookmark</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex-1 grid grid-cols-2 gap-4">
+<div class="relative aspect-[4/5] rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Modern brass chandelier" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Luxury sculptural brass chandelier in a minimal room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkLlMRvtZO5B55ojlPL59lherZW6idV7V6n3D1D4my1p-XAvvjNqZqYNpsE0dCGPJv3AnCu5pW6KoSdbmasOHL6pc7JKOE9Jf2QmOC3DCAziByFSacpy4AbBpp9L1E60OLqifUV7BGkzuqdlYyb91N9JzX6lX5MI0k8SfVAQ73V4ScSjvMruo3xnaj4btG1EUfyILCgpbb30ejmQQxsjO811XO-JoyLnO_7mDcvnQtBMajpUyhUsx5gcIFgABsf9F69Q5Qe8kPK5SC"/>
+<div class="absolute bottom-4 left-4 text-white text-[10px] font-bold bg-black/40 backdrop-blur-md px-2 py-1 rounded">GLOW RESIDENCE</div>
+</div>
+<div class="relative aspect-[4/5] rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Handblown glass sconces" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Set of artistic handblown glass wall sconces" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP3tHn44jcooANPCBa3wgTYQ48wud3NXBPufF3SOk47uMf2p4MRCUt0SeA9IGBX4ZtVyFFKgeiQZrCKiEJssGLHAJ7TNTk4Tq2r_vfuq-7Utf8JC4GjmJfnOEW9I5J_wTdU5ljcwgg0KapoXPVeWUExrfOmU-p9Vo9WqZDzaZZtgXRs9aU0O0oASCT6K2LohXPAmRBvflcEbPQ7vWRKBf2BbSeS6MoAWAcrHuIiHLWHJ-J-Pn9sH82Youix2UuSURHhfNLDwAor3Da"/>
+<div class="absolute bottom-4 left-4 text-white text-[10px] font-bold bg-black/40 backdrop-blur-md px-2 py-1 rounded">OFFICE HUB</div>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3 (Bento-style variation) -->
+<article class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300 shadow-sm border border-transparent hover:border-primary/10">
+<div class="flex flex-col md:flex-row p-8 gap-8">
+<div class="w-full md:w-64 space-y-6">
+<div class="space-y-2">
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">Active</span>
+</div>
+<h2 class="text-2xl font-extrabold font-headline leading-tight">Stone Masters Co</h2>
+<p class="text-sm text-on-surface-variant leading-relaxed">Натуральный камень, Мрамор, Столешницы</p>
+<div class="flex items-center gap-1 text-xs text-outline pt-2">
+<span class="material-symbols-outlined text-sm">location_on</span>
+                                        Москва
+                                    </div>
+</div>
+<div class="flex flex-col gap-3">
+<button class="w-full py-3 bg-primary text-on-primary font-bold rounded-lg text-sm transition-all hover:opacity-90 active:scale-95">Open Profile</button>
+<div class="flex gap-2">
+<button class="flex-1 py-3 bg-secondary-container text-on-secondary-container font-bold rounded-lg text-sm hover:bg-secondary-fixed transition-colors">Invite to bid</button>
+<button class="px-3 py-3 bg-surface-container rounded-lg text-primary hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined">bookmark</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex-1 grid grid-cols-3 gap-4">
+<div class="col-span-2 relative aspect-video rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Marble kitchen island" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Expansive white marble kitchen island in luxury penthouse" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEE0h-4kZCW00h5Bw31uwjpmp9NDdTmQjIGOo_qKXH5wC2fo1g_reAcmwexz7IXqIKdxiGnjAY3Jy5qF-eSMZu-NzawIOdjfGFJAoHA2Jfn9ZJJEYzq_0N-sugNGloiMFGeqs3qV9R4xaxdGoW4Ux_W_h10Of1PF0f1ZY-bwLmoXWxoO7fpB7oIbF1MmhzPXJP9dsiQNf7DHwY-v6FDBc4xYT4nZrAMzhkjOLPZNWEIJWX9kemP10OX99bAV5JLANDl7xHEZJzoy0Y"/>
+</div>
+<div class="relative aspect-[4/5] rounded-lg overflow-hidden bg-surface-container-high">
+<img alt="Bathroom vanity marble" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Detailed marble bathroom vanity with minimal fixtures" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP3tHn44jcooANPCBa3wgTYQ48wud3NXBPufF3SOk47uMf2p4MRCUt0SeA9IGBX4ZtVyFFKgeiQZrCKiEJssGLHAJ7TNTk4Tq2r_vfuq-7Utf8JC4GjmJfnOEW9I5J_wTdU5ljcwgg0KapoXPVeWUExrfOmU-p9Vo9WqZDzaZZtgXRs9aU0O0oASCT6K2LohXPAmRBvflcEbPQ7vWRKBf2BbSeS6MoAWAcrHuIiHLWHJ-J-Pn9sH82Youix2UuSURHhfNLDwAor3Da"/>
+</div>
+</div>
+</div>
+</article>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="w-full mt-auto py-12 px-8 bg-slate-50 dark:bg-slate-950 border-t border-slate-200/50 dark:border-slate-800/50">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl mx-auto items-center">
+<div class="font-inter text-xs text-slate-500 leading-relaxed">
+                © 2024 ProjectList. Data processed on secure Russian-based servers in compliance with local regulations.
+            </div>
+<div class="flex flex-wrap gap-6 justify-end">
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 transition-colors" href="#">Terms of Service</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 transition-colors" href="#">Privacy Policy</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 transition-colors" href="#">Contact Support</a>
+<a class="font-inter text-xs text-slate-500 hover:text-teal-900 transition-colors" href="#">Legal Status</a>
+</div>
+</div>
+</footer>
+<!-- Mobile Bottom Navigation Shell (Logic suppression applied) -->
+<!-- Suppressed on detailed search/catalog pages per guidelines but available for top-level -->
+<div class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.05)] border-t border-slate-100">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-[10px] font-bold">Explore</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span class="text-[10px]">Projects</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">mail</span>
+<span class="text-[10px]">Messages</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px]">Profile</span>
+</a>
+</div>
+</body></html>
