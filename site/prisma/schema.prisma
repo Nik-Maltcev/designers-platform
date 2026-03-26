@@ -15,7 +15,10 @@ model User {
   image         String?
   phone         String?
   role          String?
+  companyName   String?
+  city          String?
   companyId     String?
+  profileFilled Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]

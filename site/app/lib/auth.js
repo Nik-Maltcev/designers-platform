@@ -34,6 +34,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = user.id;
       session.user.role = user.role;
       session.user.phone = user.phone;
+      session.user.profileFilled = user.profileFilled;
+      session.user.companyName = user.companyName;
+      session.user.city = user.city;
       return session;
     },
   },
