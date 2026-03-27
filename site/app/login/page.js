@@ -2,21 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { loginWithEmail } from "./actions";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(formData) {
     setLoading(true);
     setError("");
 
     try {
-      const { signIn } = await import("next-auth/react");
-      await signIn("nodemailer", { email, callbackUrl: "/dashboard" });
-    } catch {
+      await loginWithEmail(formData);
+    } catch (err) {
+      if (err?.message?.includes("NEXT_REDIRECT")) {
+        return;
+      }
       setError("Не удалось отправить ссылку. Попробуйте ещё раз.");
       setLoading(false);
     }
@@ -34,17 +35,16 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-surface-container-lowest p-8 rounded-xl shadow-sm space-y-6">
+        <form action={handleSubmit} className="bg-surface-container-lowest p-8 rounded-xl shadow-sm space-y-6">
           <div className="space-y-2">
             <label htmlFor="email" className="text-xs font-bold text-outline uppercase tracking-widest">
               Электронная почта
             </label>
             <input
               id="email"
+              name="email"
               type="email"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.ru"
               className="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 transition-all text-lg"
               autoComplete="email"
