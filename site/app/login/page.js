@@ -1,28 +1,7 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 import { loginWithEmail } from "./actions";
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(formData) {
-    setLoading(true);
-    setError("");
-
-    try {
-      await loginWithEmail(formData);
-    } catch (err) {
-      if (err?.message?.includes("NEXT_REDIRECT")) {
-        return;
-      }
-      setError("Не удалось отправить ссылку. Попробуйте ещё раз.");
-      setLoading(false);
-    }
-  }
-
   return (
     <main className="pt-32 pb-24 px-6 flex items-center justify-center min-h-screen">
       <div className="w-full max-w-md">
@@ -35,7 +14,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form action={handleSubmit} className="bg-surface-container-lowest p-8 rounded-xl shadow-sm space-y-6">
+        <form action={loginWithEmail} className="bg-surface-container-lowest p-8 rounded-xl shadow-sm space-y-6">
           <div className="space-y-2">
             <label htmlFor="email" className="text-xs font-bold text-outline uppercase tracking-widest">
               Электронная почта
@@ -51,16 +30,11 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-error text-sm font-medium">{error}</p>
-          )}
-
           <button
             type="submit"
-            disabled={loading}
             className="w-full hero-gradient text-on-primary py-4 rounded-lg font-headline font-bold text-lg transition-all hover:opacity-90 disabled:opacity-50"
           >
-            {loading ? "Отправляем..." : "Получить ссылку для входа"}
+            Получить ссылку для входа
           </button>
 
           <p className="text-xs text-on-surface-variant text-center leading-relaxed">
