@@ -1,0 +1,16 @@
+meta:
+  environment: node
+  toolchain:
+    name: nodejs
+    version: 20
+
+build:
+  cmd:
+    - npm install
+    - npx prisma generate
+    - npm run build
+
+run:
+  cmd: npx prisma db push && npm start
+  persistentMount:
+    path: /data
