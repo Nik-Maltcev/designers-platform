@@ -3,3 +3,5 @@ node_modules/
 .env
 *.db
 .DS_Store
+next-env.d.ts
+app/generated/
