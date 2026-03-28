@@ -7,7 +7,7 @@ export async function loginWithEmail(formData) {
   const email = formData.get("email");
 
   try {
-    await signIn("nodemailer", { email, redirect: false });
+    await signIn("email", { email, redirect: false });
   } catch (err) {
     if (err?.digest?.startsWith("NEXT_REDIRECT")) {
       throw err;
