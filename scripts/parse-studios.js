@@ -158,7 +158,22 @@ async function processStudio(url) {
     return;
   }
 
-  const info = await askGemini(page.text, normalized);
+  // Also fetch portfolio/projects page for more project links
+  let combinedText = page.text;
+  let combinedImages = [...page.images];
+  const portfolioPaths = ["/portfolio", "/projects", "/works", "/cases", "/proekty", "/raboty"];
+  for (const path of portfolioPaths) {
+    const portfolioPage = await fetchPage(normalized.replace(/\/+$/, "") + path);
+    if (portfolioPage) {
+      combinedText += " " + portfolioPage.text;
+      combinedImages.push(...portfolioPage.images);
+      break; // found portfolio page, no need to check others
+    }
+  }
+  combinedText = combinedText.slice(0, 10000);
+  combinedImages = [...new Set(combinedImages)].slice(0, 30);
+
+  const info = await askGemini(combinedText, normalized);
   if (!info || !info.name) {
     console.log(`  ✗ Gemini returned nothing`);
     return;
@@ -194,12 +209,12 @@ async function processStudio(url) {
       await new Promise((r) => setTimeout(r, 500));
     }
     // If no project links found, use images from main page as projects
-    if (projects.length === 0 && page.images.length > 1) {
-      for (let i = 0; i < Math.min(page.images.length, 10); i++) {
+    if (projects.length === 0 && combinedImages.length > 1) {
+      for (let i = 0; i < Math.min(combinedImages.length, 20); i++) {
         projects.push({
           title: `Проект ${i + 1}`,
           description: null,
-          imageUrls: [page.images[i]],
+          imageUrls: [combinedImages[i]],
           year: null,
           objectType: null,
         });
@@ -217,7 +232,7 @@ async function processStudio(url) {
         segment: info.segment || null,
         objectTypes: info.objectTypes || [],
         services: info.services || [],
-        imageUrl: page.images[0] || null,
+        imageUrl: combinedImages[0] || null,
         projectCount: projects.length,
         projects: {
           create: projects.map((p) => ({
