@@ -1,12 +1,25 @@
-export const metadata = {
-  title: "Отправить проект на подбор — ПроектЛист",
-  description: "Заполните форму и получите 3-5 подрядчиков под ваш проект за 48 часов.",
-};
+"use client";
+
+import { useState, useRef } from "react";
+import Link from "next/link";
 
 export default function PostProjectPage() {
+  const [level, setLevel] = useState("medium-plus");
+  const [files, setFiles] = useState([]);
+  const [showCurator, setShowCurator] = useState(false);
+  const fileRef = useRef(null);
+
+  function handleFiles(e) {
+    const newFiles = Array.from(e.target.files);
+    setFiles((prev) => [...prev, ...newFiles]);
+  }
+
+  function removeFile(index) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   return (
     <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto">
-      {/* Hero Section */}
       <header className="mb-16 mt-8 max-w-3xl">
         <h1 className="font-headline font-extrabold text-5xl lg:text-6xl text-primary leading-tight mb-6">
           Получите 3-5 подрядчиков под ваш проект за 48 часов
@@ -17,10 +30,8 @@ export default function PostProjectPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Left Column: Form */}
         <div className="lg:col-span-8">
           <form className="space-y-12">
-            {/* Section: Role & Category */}
             <section className="bg-surface-container-low p-8 rounded-xl space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
@@ -51,7 +62,6 @@ export default function PostProjectPage() {
               </div>
             </section>
 
-            {/* Section: Object Details */}
             <section className="space-y-8">
               <h3 className="font-headline font-bold text-2xl text-primary">Характеристики объекта</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -72,9 +82,24 @@ export default function PostProjectPage() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-outline uppercase">Уровень проекта</label>
                   <div className="flex bg-surface-container-low rounded-lg p-1 h-[56px]">
-                    <button className="flex-1 rounded-md text-xs font-bold text-on-surface-variant hover:bg-white transition-all" type="button">Средний</button>
-                    <button className="flex-1 rounded-md text-xs font-bold bg-white text-primary shadow-sm" type="button">Средний+</button>
-                    <button className="flex-1 rounded-md text-xs font-bold text-on-surface-variant hover:bg-white transition-all" type="button">Премиум</button>
+                    {[
+                      { value: "medium", label: "Средний" },
+                      { value: "medium-plus", label: "Средний+" },
+                      { value: "premium", label: "Премиум" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setLevel(opt.value)}
+                        className={`flex-1 rounded-md text-xs font-bold transition-all ${
+                          level === opt.value
+                            ? "bg-white text-primary shadow-sm"
+                            : "text-on-surface-variant hover:bg-white/50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -82,22 +107,12 @@ export default function PostProjectPage() {
               <div className="space-y-3">
                 <label className="block font-headline font-bold text-sm uppercase tracking-widest text-primary">Срочность</label>
                 <div className="flex flex-wrap gap-3">
-                  <label className="cursor-pointer group">
-                    <input className="hidden peer" name="urgency" type="radio" />
-                    <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Срочно</span>
-                  </label>
-                  <label className="cursor-pointer group">
-                    <input className="hidden peer" name="urgency" type="radio" defaultChecked />
-                    <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">2 недели</span>
-                  </label>
-                  <label className="cursor-pointer group">
-                    <input className="hidden peer" name="urgency" type="radio" />
-                    <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Месяц</span>
-                  </label>
-                  <label className="cursor-pointer group">
-                    <input className="hidden peer" name="urgency" type="radio" />
-                    <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">Позже</span>
-                  </label>
+                  {["Срочно", "2 недели", "Месяц", "Позже"].map((u, i) => (
+                    <label key={u} className="cursor-pointer">
+                      <input className="hidden peer" name="urgency" type="radio" defaultChecked={i === 1} />
+                      <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">{u}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -107,19 +122,29 @@ export default function PostProjectPage() {
               </div>
             </section>
 
-            {/* Section: Upload */}
             <section className="bg-surface-container-lowest p-8 rounded-xl border-2 border-dashed border-outline-variant/30 text-center">
+              <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.dwg,.dxf" className="hidden" onChange={handleFiles} />
               <div className="max-w-xs mx-auto space-y-4">
                 <span className="material-symbols-outlined text-5xl text-primary/40">cloud_upload</span>
                 <div className="space-y-1">
                   <h4 className="font-bold text-lg">Загрузка файлов</h4>
                   <p className="text-sm text-on-surface-variant">Чертежи, визуализации, фотографии</p>
                 </div>
-                <button className="text-primary font-bold text-sm underline underline-offset-4" type="button">Выбрать файлы</button>
+                <button type="button" onClick={() => fileRef.current?.click()} className="text-primary font-bold text-sm underline underline-offset-4">Выбрать файлы</button>
               </div>
+              {files.length > 0 && (
+                <div className="mt-6 space-y-2 text-left">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between bg-surface-container-low px-4 py-2 rounded-lg">
+                      <span className="text-sm truncate">{f.name}</span>
+                      <button type="button" onClick={() => removeFile(i)} className="text-erro
+r text-xs hover:text-error/80">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
-            {/* Section: Contact Info */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Имя</label>
@@ -131,11 +156,10 @@ export default function PostProjectPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Эл. почта</label>
-                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="k.arch@studio.com" type="email" />
+                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="name@company.ru" type="email" />
               </div>
             </section>
 
-            {/* Section: Submit & Privacy */}
             <footer className="space-y-8 pt-8 border-t border-outline-variant/20">
               <div className="flex items-start gap-4 p-4 bg-secondary-container/30 rounded-lg">
                 <div className="flex items-center h-6">
@@ -153,10 +177,8 @@ export default function PostProjectPage() {
           </form>
         </div>
 
-        {/* Right Column: Context/Trust */}
         <aside className="lg:col-span-4 space-y-8">
           <div className="sticky top-32 space-y-8">
-            {/* Info Card */}
             <div className="bg-primary text-on-primary p-8 rounded-xl space-y-6">
               <h4 className="font-headline font-bold text-2xl">Как это работает</h4>
               <div className="space-y-6">
@@ -175,7 +197,6 @@ export default function PostProjectPage() {
               </div>
             </div>
 
-            {/* Statistics */}
             <div className="bg-surface-container-low p-8 rounded-xl space-y-6">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
@@ -197,19 +218,32 @@ export default function PostProjectPage() {
               </ul>
             </div>
 
-            {/* Support Card */}
-            <div className="p-6 bg-white rounded-xl flex items-center gap-4">
+            <button type="button" onClick={() => setShowCurator(true)} className="w-full p-6 bg-white rounded-xl flex items-center gap-4 hover:bg-surface-container-low transition-colors cursor-pointer">
               <div className="w-12 h-12 bg-secondary-fixed rounded-full overflow-hidden flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary">support_agent</span>
               </div>
-              <div>
+              <div className="text-left">
                 <p className="text-xs font-bold text-outline uppercase tracking-wider">Нужна помощь?</p>
                 <p className="text-sm font-semibold">Напишите куратору</p>
               </div>
-            </div>
+            </button>
           </div>
         </aside>
       </div>
+
+      {showCurator && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowCurator(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary text-3xl">support_agent</span>
+              <h3 className="font-headline font-bold text-xl text-primary">Связаться с куратором</h3>
+            </div>
+            <p className="text-on-surface-variant">Напишите нам, и куратор свяжется с вами в течение рабочего дня.</p>
+            <p className="text-primary font-bold">support@projektlist.ru</p>
+            <button onClick={() => setShowCurator(false)} className="w-full py-3 bg-surface-container-high rounded-lg font-bold text-sm hover:bg-surface-container-highest transition-colors">Закрыть</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

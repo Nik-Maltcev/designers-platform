@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ContractorFilters from "../components/ContractorFilters";
 
 export const metadata = {
   title: "Подрядчики и производства — ПроектЛист",
@@ -76,14 +77,7 @@ export default function ContractorsPage() {
             </div>
             <div>
               <h3 className="font-headline font-bold text-lg mb-5">Тип объекта</h3>
-              <div className="flex flex-wrap gap-2">
-                <button className="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Квартира</button>
-                <button className="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-full text-xs font-semibold">Дом</button>
-                <button className="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Офис</button>
-                <button className="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Отель</button>
-                <button className="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Ресторан / Кафе</button>
-                <button className="px-3 py-1.5 bg-surface-container rounded-full text-xs font-semibold">Другое</button>
-              </div>
+              <ContractorFilters />
             </div>
             <div>
               <h3 className="font-headline font-bold text-lg mb-5">Сегмент</h3>
@@ -96,17 +90,6 @@ export default function ContractorsPage() {
                   <span className="text-sm">Премиум</span>
                   <input className="rounded-full text-primary" type="checkbox" />
                 </label>
-              </div>
-            </div>
-            <div className="pt-4 space-y-3">
-              <div className="flex items-center justify-between p-3 bg-primary-fixed/30 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-sm" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
-                  <span className="text-sm font-bold text-on-primary-fixed-variant">Только проверенные</span>
-                </div>
-                <div className="w-10 h-5 bg-primary rounded-full relative">
-                  <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div>
-                </div>
               </div>
             </div>
           </aside>

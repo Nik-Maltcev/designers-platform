@@ -137,7 +137,7 @@ export default function PricingPage() {
                 <td className="p-6 text-center font-bold text-primary bg-primary/5">Приоритетная</td>
               </tr>
               <tr className="group hover:bg-surface-container-lowest transition-colors">
-                <td className="p-6 text-on-surface-variant">Контактные данные дизайнеров</td>
+                <td className="p-6 text-on-surface-variant">Просмотр карточек дизайнеров</td>
                 <td className="p-6 text-center">Лимит 20/мес</td>
                 <td className="p-6 text-center font-bold text-primary bg-primary/5">Безлимитно</td>
               </tr>

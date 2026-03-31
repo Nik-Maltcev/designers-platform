@@ -7,9 +7,9 @@ export const metadata = {
 
 export default function DesignersPage() {
   return (
-    <div className="pt-24 pb-12 flex">
+    <div className="pt-24 pb-12 flex flex-col lg:flex-row">
       {/* Sidebar Filter */}
-      <aside className="h-[calc(100vh-6rem)] w-72 fixed left-0 top-24 overflow-y-auto px-8 py-6 hidden lg:block">
+      <aside className="h-[calc(100vh-6rem)] w-72 fixed left-0 top-24 overflow-y-auto px-8 py-6 hidden lg:block z-10 bg-surface">
         <div className="space-y-10">
           {/* Filter: Object Types */}
           <section>
@@ -293,7 +293,7 @@ export default function DesignersPage() {
 
         {/* Pagination */}
         <div className="mt-20 flex items-center justify-between border-t border-outline-variant pt-8">
-          <span className="text-xs font-bold text-outline tracking-widest uppercase">Показано 1-12 из 842 специалистов</span>
+          <span className="text-xs font-bold text-outline tracking-widest uppercase">Показано 1-100 из 842 специалистов</span>
           <div className="flex gap-4">
             <button className="text-primary p-2 hover:bg-primary/5 rounded-full"><span className="material-symbols-outlined">arrow_back</span></button>
             <div className="flex items-center gap-6 px-4">
