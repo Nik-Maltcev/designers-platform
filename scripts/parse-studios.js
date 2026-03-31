@@ -42,12 +42,26 @@ async function fetchPage(url) {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 6000);
+    const baseUrlObj = new URL(url);
     const imgMatches = html.match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
-    const images = imgMatches
-      .map((m) => m.match(/src=["']([^"']+)["']/)?.[1])
+    // Also grab background images from style attributes
+    const bgMatches = html.match(/url\(["']?([^"')]+)["']?\)/gi) || [];
+    const allSrcs = [
+      ...imgMatches.map((m) => m.match(/src=["']([^"']+)["']/)?.[1]),
+      ...bgMatches.map((m) => m.match(/url\(["']?([^"')]+)["']?\)/)?.[1]),
+    ].filter(Boolean);
+    const images = allSrcs
+      .map((src) => {
+        if (src.startsWith("//")) return "https:" + src;
+        if (src.startsWith("/")) return baseUrlObj.origin + src;
+        if (src.startsWith("http")) return src;
+        if (src.startsWith("data:")) return null;
+        return baseUrlObj.origin + "/" + src;
+      })
       .filter(Boolean)
-      .filter((src) => src.startsWith("http") && !src.includes("logo") && !src.includes("icon"))
-      .slice(0, 10);
+      .filter((src) => !src.includes("logo") && !src.includes("icon") && !src.includes("favicon") && !src.includes(".svg"))
+      .filter((src, i, arr) => arr.indexOf(src) === i)
+      .slice(0, 15);
     return { text, images };
   } catch {
     return null;
@@ -96,17 +110,10 @@ ${pageText}
   "segment": "premium или medium-plus или medium",
   "objectTypes": ["Квартиры", "Дома", ...],
   "services": ["Дизайн-проект", "Авторский надзор", ...],
-  "projects": [
-    {
-      "title": "Название проекта",
-      "description": "Краткое описание",
-      "year": "2024",
-      "objectType": "Квартира"
-    }
-  ]
+  "projectLinks": ["ссылки на отдельные страницы проектов из портфолио, до 30 штук"]
 }
 
-Если информации нет — оставь пустую строку или пустой массив. Проекты бери из портфолио если есть.`;
+Если информации нет — оставь пустую строку или пустой массив. projectLinks — это URL страниц отдельных проектов из портфолио/каталога работ.`;
 
   try {
     const res = await fetch(GEMINI_URL, {
@@ -168,6 +175,37 @@ async function processStudio(url) {
   const slug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
 
   try {
+    // Parse individual project pages
+    const projectLinks = (info.projectLinks || []).slice(0, 30);
+    const projects = [];
+    for (const link of projectLinks) {
+      const projectUrl = link.startsWith("http") ? link : normalized.replace(/\/+$/, "") + (link.startsWith("/") ? link : "/" + link);
+      const projectPage = await fetchPage(projectUrl);
+      if (!projectPage) continue;
+      // Extract title from first heading-like text
+      const titleMatch = projectPage.text.match(/^(.{5,80}?)[\.\,\—\-\|]/);
+      projects.push({
+        title: titleMatch ? titleMatch[1].trim() : `Проект ${projects.length + 1}`,
+        description: projectPage.text.slice(0, 200).trim(),
+        imageUrls: projectPage.images.slice(0, 5),
+        year: projectPage.text.match(/20[12]\d/)?.[0] || null,
+        objectType: null,
+      });
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    // If no project links found, use images from main page as projects
+    if (projects.length === 0 && page.images.length > 1) {
+      for (let i = 0; i < Math.min(page.images.length, 10); i++) {
+        projects.push({
+          title: `Проект ${i + 1}`,
+          description: null,
+          imageUrls: [page.images[i]],
+          year: null,
+          objectType: null,
+        });
+      }
+    }
+
     const studio = await prisma.studio.create({
       data: {
         name: info.name,
@@ -180,19 +218,19 @@ async function processStudio(url) {
         objectTypes: info.objectTypes || [],
         services: info.services || [],
         imageUrl: page.images[0] || null,
-        projectCount: info.projects?.length || 0,
+        projectCount: projects.length,
         projects: {
-          create: (info.projects || []).slice(0, 5).map((p, i) => ({
-            title: p.title || `Проект ${i + 1}`,
+          create: projects.map((p) => ({
+            title: p.title,
             description: p.description || null,
             year: p.year || null,
             objectType: p.objectType || null,
-            imageUrls: page.images.slice(i, i + 2),
+            imageUrls: p.imageUrls,
           })),
         },
       },
     });
-    console.log(`  ✓ saved: ${studio.name} (${info.projects?.length || 0} projects)`);
+    console.log(`  ✓ saved: ${studio.name} (${projects.length} projects)`);
   } catch (err) {
     console.log(`  ✗ DB error: ${err.message}`);
   }
