@@ -58,3 +58,36 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Studio {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  website     String?
+  inn         String?
+  description String?
+  city        String?
+  segment     String?
+  objectTypes String[]
+  services    String[]
+  verified    Boolean   @default(false)
+  active      Boolean   @default(true)
+  imageUrl    String?
+  projectCount Int      @default(0)
+  publications String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projects    Project[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrls   String[]
+  year        String?
+  objectType  String?
+  studioId    String
+  studio      Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
