@@ -35,15 +35,13 @@ async function fetchPage(url) {
     clearTimeout(timeout);
     if (!res.ok) return null;
     const html = await res.text();
-    // Strip tags, keep text, limit to 8000 chars for Gemini
     const text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 8000);
-    // Extract image URLs
+      .slice(0, 6000);
     const imgMatches = html.match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
     const images = imgMatches
       .map((m) => m.match(/src=["']([^"']+)["']/)?.[1])
@@ -54,6 +52,33 @@ async function fetchPage(url) {
   } catch {
     return null;
   }
+}
+
+async function fetchInnPages(baseUrl) {
+  const subpages = ["/contacts", "/about", "/kontakty", "/rekvizity", "/policy", "/oferta", "/requisites", "/contact"];
+  let allText = "";
+  for (const path of subpages) {
+    try {
+      const url = baseUrl.replace(/\/+$/, "") + path;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ProjektListBot/1.0)" },
+      });
+      clearTimeout(timeout);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      // Look for INN pattern (10 or 12 digits)
+      const innMatch = text.match(/ИНН[:\s]*(\d{10,12})/i) || text.match(/инн[:\s]*(\d{10,12})/i) || text.match(/INN[:\s]*(\d{10,12})/i);
+      if (innMatch) return innMatch[1];
+      allText += " " + text.slice(0, 2000);
+    } catch { /* skip */ }
+  }
+  // Try regex on combined text
+  const innMatch = allText.match(/(\d{10})\b/) || allText.match(/(\d{12})\b/);
+  return innMatch ? innMatch[1] : null;
 }
 
 async function askGemini(pageText, url) {
@@ -89,7 +114,7 @@ ${pageText}
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+        generationConfig: { temperature: 0.1, maxOutputTokens: 4000 },
       }),
     });
     const data = await res.json();
@@ -132,6 +157,14 @@ async function processStudio(url) {
     return;
   }
 
+  // Search for INN on subpages if Gemini didn't find it
+  let inn = info.inn || null;
+  if (!inn) {
+    console.log(`  🔍 Searching INN on subpages...`);
+    inn = await fetchInnPages(normalized);
+    if (inn) console.log(`  📋 Found INN: ${inn}`);
+  }
+
   const slug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
 
   try {
@@ -140,7 +173,7 @@ async function processStudio(url) {
         name: info.name,
         slug,
         website: normalized,
-        inn: info.inn || null,
+        inn: inn,
         description: info.description || null,
         city: info.city || null,
         segment: info.segment || null,
