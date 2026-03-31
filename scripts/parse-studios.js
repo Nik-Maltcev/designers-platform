@@ -3,7 +3,7 @@ import fs from "fs";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 const urls = fs.readFileSync("designer.csv", "utf-8")
   .split("\n")
@@ -93,6 +93,14 @@ ${pageText}
       }),
     });
     const data = await res.json();
+    if (data.error) {
+      if (data.error.code === 429) {
+        console.log("  ⏳ Rate limit, waiting 60s...");
+        await new Promise((r) => setTimeout(r, 60000));
+        return askGemini(pageText, url); // retry
+      }
+      throw new Error(data.error.message);
+    }
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const jsonStr = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(jsonStr);
