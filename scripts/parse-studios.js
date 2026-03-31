@@ -68,6 +68,35 @@ async function fetchPage(url) {
   }
 }
 
+async function fetchPageWithLinks(url) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ProjektListBot/1.0)" },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const html = await res.text();
+    const baseUrlObj = new URL(url);
+    // Extract all internal links
+    const linkMatches = html.match(/<a[^>]+href=["']([^"'#]+)["']/gi) || [];
+    const links = linkMatches
+      .map((m) => m.match(/href=["']([^"'#]+)["']/)?.[1])
+      .filter(Boolean)
+      .map((href) => {
+        if (href.startsWith("//")) return "https:" + href;
+        if (href.startsWith("/")) return baseUrlObj.origin + href;
+        if (href.startsWith("http")) return href;
+        return baseUrlObj.origin + "/" + href;
+      })
+      .filter((href) => href.includes(baseUrlObj.hostname))
+      .filter((href, i, arr) => arr.indexOf(href) === i);
+    return links;
+  } catch { return []; }
+}
+
 async function fetchInnPages(baseUrl) {
   const subpages = ["/contacts", "/about", "/kontakty", "/rekvizity", "/policy", "/oferta", "/requisites", "/contact"];
   let allText = "";
@@ -161,13 +190,25 @@ async function processStudio(url) {
   // Also fetch portfolio/projects page for more project links
   let combinedText = page.text;
   let combinedImages = [...page.images];
+  let portfolioLinks = [];
   const portfolioPaths = ["/portfolio", "/projects", "/works", "/cases", "/proekty", "/raboty"];
   for (const path of portfolioPaths) {
-    const portfolioPage = await fetchPage(normalized.replace(/\/+$/, "") + path);
+    const fullUrl = normalized.replace(/\/+$/, "") + path;
+    const portfolioPage = await fetchPage(fullUrl);
     if (portfolioPage) {
       combinedText += " " + portfolioPage.text;
       combinedImages.push(...portfolioPage.images);
-      break; // found portfolio page, no need to check others
+      // Extract links from portfolio page HTML
+      const links = await fetchPageWithLinks(fullUrl);
+      portfolioLinks = links.filter((l) =>
+        l.includes("project") || l.includes("portfolio") || l.includes("work") ||
+        l.includes("case") || l.includes("proekt") || l.includes("rabota") ||
+        /\/\d+/.test(l) || /\/[a-z-]+\/$/.test(l)
+      ).filter((l) => l !== fullUrl && l !== normalized).slice(0, 50);
+      console.log(`  📂 Found ${portfolioLinks.length} project links from ${path}`);
+      break;
+    }
+  }
     }
   }
   combinedText = combinedText.slice(0, 10000);
@@ -190,8 +231,8 @@ async function processStudio(url) {
   const slug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
 
   try {
-    // Parse individual project pages
-    const projectLinks = (info.projectLinks || []).slice(0, 30);
+    // Use portfolio links from HTML, fallback to Gemini projectLinks
+    const projectLinks = portfolioLinks.length > 0 ? portfolioLinks : (info.projectLinks || []).slice(0, 30);
     const projects = [];
     for (const link of projectLinks) {
       const projectUrl = link.startsWith("http") ? link : normalized.replace(/\/+$/, "") + (link.startsWith("/") ? link : "/" + link);
