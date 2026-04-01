@@ -78,6 +78,7 @@ model Studio {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   projects    Project[]
+  companyData CompanyData?
 }
 
 model Project {
@@ -90,4 +91,26 @@ model Project {
   studioId    String
   studio      Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+}
+
+model CompanyData {
+  id              String   @id @default(cuid())
+  studioId        String   @unique
+  studio          Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  ogrn            String?
+  fullName        String?
+  address         String?
+  director        String?
+  registrationDate String?
+  status          String?
+  revenue         String?
+  profit          String?
+  employees       Int?
+  courtCasesCount Int      @default(0)
+  courtCases      Json?
+  contractsCount  Int      @default(0)
+  contracts       Json?
+  enforcementsCount Int    @default(0)
+  enforcements    Json?
+  fetchedAt       DateTime @default(now())
 }

@@ -18,7 +18,7 @@ export default async function StudioPage({ params }) {
   const { slug } = await params;
   const studio = await prisma.studio.findUnique({
     where: { slug },
-    include: { projects: true },
+    include: { projects: true, companyData: true },
   });
 
   if (!studio) notFound();
@@ -109,6 +109,95 @@ export default async function StudioPage({ params }) {
           )}
         </div>
       </div>
+
+      {studio.companyData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+          <div className="bg-surface-container-low p-8 rounded-xl">
+            <h3 className="text-xl font-bold mb-6 font-headline">Финансовые данные</h3>
+            <div className="space-y-4">
+              {studio.companyData.revenue && (
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                  <div>
+                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Выручка</span>
+                    <p className="text-lg font-bold text-on-surface">{Number(studio.companyData.revenue).toLocaleString("ru-RU")} ₽</p>
+                  </div>
+                  <span className="material-symbols-outlined text-primary text-2xl">trending_up</span>
+                </div>
+              )}
+              {studio.companyData.profit && (
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                  <div>
+                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Чистая прибыль</span>
+                    <p className="text-lg font-bold text-on-surface">{Number(studio.companyData.profit).toLocaleString("ru-RU")} ₽</p>
+                  </div>
+                  <span className="material-symbols-outlined text-primary text-2xl">account_balance</span>
+                </div>
+              )}
+              {studio.companyData.employees && (
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                  <div>
+                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Сотрудников</span>
+                    <p className="text-lg font-bold text-on-surface">{studio.companyData.employees}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-primary text-2xl">groups</span>
+                </div>
+              )}
+              {studio.companyData.registrationDate && (
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                  <div>
+                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Дата регистрации</span>
+                    <p className="text-sm font-semibold text-on-surface">{studio.companyData.registrationDate}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-primary text-2xl">calendar_month</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+            <h3 className="text-xl font-bold mb-6 font-headline">Проверка контрагента</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
+                <div>
+                  <span className="text-xs text-outline uppercase font-bold">Судебные дела</span>
+                  <p className="text-sm font-semibold">{studio.companyData.courtCasesCount} дел</p>
+                </div>
+                <div className={`flex items-center gap-1 text-xs font-bold uppercase ${studio.companyData.courtCasesCount === 0 ? "text-teal-600" : "text-amber-600"}`}>
+                  <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{studio.companyData.courtCasesCount === 0 ? "check_circle" : "warning"}</span>
+                  {studio.companyData.courtCasesCount === 0 ? "Нет" : "Есть"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
+                <div>
+                  <span className="text-xs text-outline uppercase font-bold">Госконтракты</span>
+                  <p className="text-sm font-semibold">{studio.companyData.contractsCount} контрактов</p>
+                </div>
+                <span className="material-symbols-outlined text-primary text-sm">description</span>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
+                <div>
+                  <span className="text-xs text-outline uppercase font-bold">Исполнительные производства</span>
+                  <p className="text-sm font-semibold">{studio.companyData.enforcementsCount} производств</p>
+                </div>
+                <div className={`flex items-center gap-1 text-xs font-bold uppercase ${studio.companyData.enforcementsCount === 0 ? "text-teal-600" : "text-red-600"}`}>
+                  <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{studio.companyData.enforcementsCount === 0 ? "check_circle" : "error"}</span>
+                  {studio.companyData.enforcementsCount === 0 ? "Нет" : "Есть"}
+                </div>
+              </div>
+              {studio.companyData.status && (
+                <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
+                  <div>
+                    <span className="text-xs text-outline uppercase font-bold">Статус организации</span>
+                    <p className="text-sm font-semibold">{studio.companyData.status}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-teal-600 text-sm" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
+                </div>
+              )}
+              <p className="text-[10px] text-outline mt-2">Данные актуальны на {new Date(studio.companyData.fetchedAt).toLocaleDateString("ru-RU")}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {studio.projects.length > 0 && (
         <section className="mb-20">

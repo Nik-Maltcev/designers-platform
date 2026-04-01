@@ -200,15 +200,13 @@ async function processStudio(url) {
       combinedImages.push(...portfolioPage.images);
       // Extract links from portfolio page HTML
       const links = await fetchPageWithLinks(fullUrl);
-      portfolioLinks = links.filter((l) =>
-        l.includes("project") || l.includes("portfolio") || l.includes("work") ||
-        l.includes("case") || l.includes("proekt") || l.includes("rabota") ||
-        /\/\d+/.test(l) || /\/[a-z-]+\/$/.test(l)
-      ).filter((l) => l !== fullUrl && l !== normalized).slice(0, 50);
+      portfolioLinks = links
+        .filter((l) => l !== fullUrl && l !== normalized && l !== normalized + "/" && !l.includes("#"))
+        .filter((l) => !l.match(/\.(css|js|png|jpg|svg|ico|pdf)$/i))
+        .filter((l) => !l.includes("mailto:") && !l.includes("tel:"))
+        .slice(0, 50);
       console.log(`  📂 Found ${portfolioLinks.length} project links from ${path}`);
       break;
-    }
-  }
     }
   }
   combinedText = combinedText.slice(0, 10000);
@@ -293,10 +291,12 @@ async function processStudio(url) {
 }
 
 async function main() {
-  console.log(`\nПарсинг ${urls.length} студий...\n`);
+  const limit = parseInt(process.env.PARSE_LIMIT) || urls.length;
+  const toProcess = urls.slice(0, limit);
+  console.log(`\nПарсинг ${toProcess.length} из ${urls.length} студий...\n`);
 
-  for (let i = 0; i < urls.length; i++) {
-    await processStudio(urls[i]);
+  for (let i = 0; i < toProcess.length; i++) {
+    await processStudio(toProcess[i]);
     // Rate limit: 15 req/min for Gemini free tier
     if ((i + 1) % 14 === 0) {
       console.log("\n⏳ Пауза 60 сек (лимит Gemini)...\n");
