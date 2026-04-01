@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { chromium } from "playwright";
 import fs from "fs";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
@@ -6,10 +7,8 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 const urls = fs.readFileSync("designer.csv", "utf-8")
-  .split("\n")
-  .map((u) => u.trim())
-  .filter(Boolean)
-  .filter((u, i, arr) => arr.indexOf(u) === i); // dedupe
+  .split("\n").map(u => u.trim()).filter(Boolean)
+  .filter((u, i, a) => a.indexOf(u) === i);
 
 function normalizeUrl(url) {
   if (!url.startsWith("http")) url = "https://" + url;
@@ -17,158 +16,72 @@ function normalizeUrl(url) {
 }
 
 function slugify(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-zа-яё0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
+  return name.toLowerCase().replace(/[^a-zа-яё0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 80);
 }
 
-async function fetchPage(url) {
+let browser;
+
+async function getPage(url, timeout = 15000) {
+  const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await ctx.newPage();
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ProjektListBot/1.0)" },
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+    await page.waitForTimeout(2000); // let JS render
+    const text = await page.evaluate(() => document.body?.innerText?.slice(0, 8000) || "");
+    const images = await page.evaluate(() => {
+      return [...document.querySelectorAll("img")]
+        .map(img => img.src || img.dataset?.src || "")
+        .filter(s => s.startsWith("http") && !s.includes("logo") && !s.includes("icon") && !s.includes(".svg") && !s.includes("favicon"))
+        .filter((s, i, a) => a.indexOf(s) === i);
     });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const html = await res.text();
-    const text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 6000);
-    const baseUrlObj = new URL(url);
-    const imgMatches = html.match(/<img[^>]+src=["']([^"']+)["']/gi) || [];
-    // Also grab background images from style attributes
-    const bgMatches = html.match(/url\(["']?([^"')]+)["']?\)/gi) || [];
-    const allSrcs = [
-      ...imgMatches.map((m) => m.match(/src=["']([^"']+)["']/)?.[1]),
-      ...bgMatches.map((m) => m.match(/url\(["']?([^"')]+)["']?\)/)?.[1]),
-    ].filter(Boolean);
-    const images = allSrcs
-      .map((src) => {
-        if (src.startsWith("//")) return "https:" + src;
-        if (src.startsWith("/")) return baseUrlObj.origin + src;
-        if (src.startsWith("http")) return src;
-        if (src.startsWith("data:")) return null;
-        return baseUrlObj.origin + "/" + src;
-      })
-      .filter(Boolean)
-      .filter((src) => !src.includes("logo") && !src.includes("icon") && !src.includes("favicon") && !src.includes(".svg"))
-      .filter((src, i, arr) => arr.indexOf(src) === i)
-      .slice(0, 15);
-    return { text, images };
+    const links = await page.evaluate((baseHost) => {
+      return [...document.querySelectorAll("a[href]")]
+        .map(a => a.href)
+        .filter(h => h.includes(baseHost) && !h.includes("#") && !h.includes("mailto:") && !h.includes("tel:"))
+        .filter((h, i, a) => a.indexOf(h) === i);
+    }, new URL(url).hostname);
+    await ctx.close();
+    return { text, images, links };
   } catch {
+    await ctx.close();
     return null;
   }
 }
 
-async function fetchPageWithLinks(url) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ProjektListBot/1.0)" },
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const html = await res.text();
-    const baseUrlObj = new URL(url);
-    // Extract all internal links
-    const linkMatches = html.match(/<a[^>]+href=["']([^"'#]+)["']/gi) || [];
-    const links = linkMatches
-      .map((m) => m.match(/href=["']([^"'#]+)["']/)?.[1])
-      .filter(Boolean)
-      .map((href) => {
-        if (href.startsWith("//")) return "https:" + href;
-        if (href.startsWith("/")) return baseUrlObj.origin + href;
-        if (href.startsWith("http")) return href;
-        return baseUrlObj.origin + "/" + href;
-      })
-      .filter((href) => href.includes(baseUrlObj.hostname))
-      .filter((href, i, arr) => arr.indexOf(href) === i);
-    return links;
-  } catch { return []; }
-}
-
-async function fetchInnPages(baseUrl) {
-  const subpages = ["/contacts", "/about", "/kontakty", "/rekvizity", "/policy", "/oferta", "/requisites", "/contact"];
-  let allText = "";
-  for (const path of subpages) {
-    try {
-      const url = baseUrl.replace(/\/+$/, "") + path;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ProjektListBot/1.0)" },
-      });
-      clearTimeout(timeout);
-      if (!res.ok) continue;
-      const html = await res.text();
-      const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      // Look for INN pattern (10 or 12 digits)
-      const innMatch = text.match(/ИНН[:\s]*(\d{10,12})/i) || text.match(/инн[:\s]*(\d{10,12})/i) || text.match(/INN[:\s]*(\d{10,12})/i);
-      if (innMatch) return innMatch[1];
-      allText += " " + text.slice(0, 2000);
-    } catch { /* skip */ }
-  }
-  // Try regex on combined text
-  const innMatch = allText.match(/(\d{10})\b/) || allText.match(/(\d{12})\b/);
-  return innMatch ? innMatch[1] : null;
-}
-
-async function askGemini(pageText, url) {
-  const prompt = `Ты анализируешь сайт дизайн-студии интерьеров. URL: ${url}
-
-Вот текст с сайта:
-${pageText}
-
-Верни JSON (без markdown, только чистый JSON):
-{
-  "name": "Название студии",
-  "description": "Краткое описание студии (2-3 предложения)",
-  "city": "Город (если найден)",
-  "inn": "ИНН (если найден, только цифры)",
-  "segment": "premium или medium-plus или medium",
-  "objectTypes": ["Квартиры", "Дома", ...],
-  "services": ["Дизайн-проект", "Авторский надзор", ...],
-  "projectLinks": ["ссылки на отдельные страницы проектов из портфолио, до 30 штук"]
-}
-
-Если информации нет — оставь пустую строку или пустой массив. projectLinks — это URL страниц отдельных проектов из портфолио/каталога работ.`;
-
+async function askGemini(text, prompt) {
   try {
     const res = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: prompt + "\n\n" + text }] }],
         generationConfig: { temperature: 0.1, maxOutputTokens: 4000 },
       }),
     });
     const data = await res.json();
-    if (data.error) {
-      if (data.error.code === 429) {
-        console.log("  ⏳ Rate limit, waiting 60s...");
-        await new Promise((r) => setTimeout(r, 60000));
-        return askGemini(pageText, url); // retry
-      }
-      throw new Error(data.error.message);
+    if (data.error?.code === 429) {
+      console.log("  ⏳ Rate limit, waiting 60s...");
+      await new Promise(r => setTimeout(r, 60000));
+      return askGemini(text, prompt);
     }
+    if (data.error) throw new Error(data.error.message);
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const jsonStr = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    return JSON.parse(jsonStr);
+    return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch (err) {
-    console.error(`Gemini error for ${url}:`, err.message);
+    console.log(`  ⚠ Gemini: ${err.message}`);
     return null;
   }
+}
+
+async function fetchInn(baseUrl) {
+  const paths = ["/contacts", "/kontakty", "/about", "/rekvizity", "/policy", "/oferta"];
+  for (const path of paths) {
+    const page = await getPage(baseUrl.replace(/\/+$/, "") + path, 10000);
+    if (!page) continue;
+    const match = page.text.match(/ИНН[:\s]*(\d{10,12})/i);
+    if (match) return match[1];
+  }
+  return null;
 }
 
 async function processStudio(url) {
@@ -176,142 +89,93 @@ async function processStudio(url) {
   console.log(`→ ${normalized}`);
 
   const existing = await prisma.studio.findFirst({ where: { website: normalized } });
-  if (existing) {
-    console.log(`  ✓ already exists: ${existing.name}`);
-    return;
-  }
+  if (existing) { console.log(`  ✓ exists: ${existing.name}`); return; }
 
-  const page = await fetchPage(normalized);
-  if (!page) {
-    console.log(`  ✗ failed to fetch`);
-    return;
-  }
+  const main = await getPage(normalized);
+  if (!main) { console.log(`  ✗ failed`); return; }
 
-  // Also fetch portfolio/projects page for more project links
-  let combinedText = page.text;
-  let combinedImages = [...page.images];
-  let portfolioLinks = [];
-  const portfolioPaths = ["/portfolio", "/projects", "/works", "/cases", "/proekty", "/raboty"];
+  // Get studio info from Gemini
+  const info = await askGemini(main.text, `Сайт дизайн-студии. URL: ${normalized}. Верни JSON (без markdown):
+{"name":"Название","description":"Описание 2-3 предложения","city":"Город","inn":"ИНН если есть","segment":"premium/medium-plus/medium","objectTypes":["Квартиры","Дома"],"services":["Дизайн-проект"]}`);
+  if (!info?.name) { console.log(`  ✗ Gemini fail`); return; }
+
+  // Find portfolio page
+  const portfolioPaths = ["/portfolio", "/projects", "/works", "/proekty", "/cases", "/raboty"];
+  let projectLinks = [];
   for (const path of portfolioPaths) {
-    const fullUrl = normalized.replace(/\/+$/, "") + path;
-    const portfolioPage = await fetchPage(fullUrl);
-    if (portfolioPage) {
-      combinedText += " " + portfolioPage.text;
-      combinedImages.push(...portfolioPage.images);
-      // Extract links from portfolio page HTML
-      const links = await fetchPageWithLinks(fullUrl);
-      portfolioLinks = links
-        .filter((l) => l !== fullUrl && l !== normalized && l !== normalized + "/" && !l.includes("#"))
-        .filter((l) => !l.match(/\.(css|js|png|jpg|svg|ico|pdf)$/i))
-        .filter((l) => !l.includes("mailto:") && !l.includes("tel:"))
-        .slice(0, 50);
-      console.log(`  📂 Found ${portfolioLinks.length} project links from ${path}`);
+    const pPage = await getPage(normalized.replace(/\/+$/, "") + path, 10000);
+    if (pPage && pPage.links.length > 3) {
+      const skip = ["/blog", "/uslugi", "/service", "/contact", "/about", "/price", "/news", "/faq", "/login", "/cart", "/policy"];
+      projectLinks = pPage.links.filter(l => !skip.some(s => l.toLowerCase().includes(s))).slice(0, 25);
+      console.log(`  📂 ${projectLinks.length} projects from ${path}`);
       break;
     }
   }
-  combinedText = combinedText.slice(0, 10000);
-  combinedImages = [...new Set(combinedImages)].slice(0, 30);
 
-  const info = await askGemini(combinedText, normalized);
-  if (!info || !info.name) {
-    console.log(`  ✗ Gemini returned nothing`);
-    return;
+  // Parse each project page
+  const projects = [];
+  for (const link of projectLinks) {
+    const pp = await getPage(link, 10000);
+    if (!pp) continue;
+    const pInfo = await askGemini(pp.text.slice(0, 3000),
+      `Страница проекта дизайн-студии. Верни JSON: {"title":"Название","description":"1-2 предложения","year":"год","objectType":"тип","skip":false}. Если это НЕ проект (блог, услуги и т.д.) — {"skip":true}`);
+    if (!pInfo || pInfo.skip) continue;
+    projects.push({
+      title: pInfo.title || `Проект ${projects.length + 1}`,
+      description: pInfo.description || null,
+      imageUrls: pp.images.filter(u => /\.(jpg|jpeg|png|webp)/i.test(u)).slice(0, 8),
+      year: pInfo.year || null,
+      objectType: pInfo.objectType || null,
+    });
+    await new Promise(r => setTimeout(r, 500));
   }
 
-  // Search for INN on subpages if Gemini didn't find it
+  // Fallback: use main page images as projects
+  if (projects.length === 0 && main.images.length > 1) {
+    for (let i = 0; i < Math.min(main.images.length, 10); i++) {
+      projects.push({ title: `Проект ${i + 1}`, description: null, imageUrls: [main.images[i]], year: null, objectType: null });
+    }
+  }
+
+  // Find INN
   let inn = info.inn || null;
   if (!inn) {
-    console.log(`  🔍 Searching INN on subpages...`);
-    inn = await fetchInnPages(normalized);
-    if (inn) console.log(`  📋 Found INN: ${inn}`);
+    console.log(`  🔍 INN...`);
+    inn = await fetchInn(normalized);
+    if (inn) console.log(`  📋 INN: ${inn}`);
   }
 
   const slug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
-
   try {
-    // Use portfolio links from HTML, fallback to Gemini projectLinks
-    const projectLinks = portfolioLinks.length > 0 ? portfolioLinks : (info.projectLinks || []).slice(0, 30);
-    const projects = [];
-    for (const link of projectLinks) {
-      const projectUrl = link.startsWith("http") ? link : normalized.replace(/\/+$/, "") + (link.startsWith("/") ? link : "/" + link);
-      const projectPage = await fetchPage(projectUrl);
-      if (!projectPage) continue;
-      // Extract title from first heading-like text
-      const titleMatch = projectPage.text.match(/^(.{5,80}?)[\.\,\—\-\|]/);
-      projects.push({
-        title: titleMatch ? titleMatch[1].trim() : `Проект ${projects.length + 1}`,
-        description: projectPage.text.slice(0, 200).trim(),
-        imageUrls: projectPage.images.slice(0, 5),
-        year: projectPage.text.match(/20[12]\d/)?.[0] || null,
-        objectType: null,
-      });
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    // If no project links found, use images from main page as projects
-    if (projects.length === 0 && combinedImages.length > 1) {
-      for (let i = 0; i < Math.min(combinedImages.length, 20); i++) {
-        projects.push({
-          title: `Проект ${i + 1}`,
-          description: null,
-          imageUrls: [combinedImages[i]],
-          year: null,
-          objectType: null,
-        });
-      }
-    }
-
-    const studio = await prisma.studio.create({
+    await prisma.studio.create({
       data: {
-        name: info.name,
-        slug,
-        website: normalized,
-        inn: inn,
-        description: info.description || null,
-        city: info.city || null,
-        segment: info.segment || null,
-        objectTypes: info.objectTypes || [],
-        services: info.services || [],
-        imageUrl: combinedImages[0] || null,
+        name: info.name, slug, website: normalized, inn,
+        description: info.description || null, city: info.city || null,
+        segment: info.segment || null, objectTypes: info.objectTypes || [],
+        services: info.services || [], imageUrl: main.images[0] || null,
         projectCount: projects.length,
-        projects: {
-          create: projects.map((p) => ({
-            title: p.title,
-            description: p.description || null,
-            year: p.year || null,
-            objectType: p.objectType || null,
-            imageUrls: p.imageUrls,
-          })),
-        },
+        projects: { create: projects },
       },
     });
-    console.log(`  ✓ saved: ${studio.name} (${projects.length} projects)`);
-  } catch (err) {
-    console.log(`  ✗ DB error: ${err.message}`);
-  }
+    console.log(`  ✓ ${info.name} (${projects.length} projects, ${projects.reduce((s, p) => s + p.imageUrls.length, 0)} photos)`);
+  } catch (err) { console.log(`  ✗ DB: ${err.message}`); }
 }
 
 async function main() {
+  browser = await chromium.launch({ headless: true });
   const limit = parseInt(process.env.PARSE_LIMIT) || urls.length;
   const toProcess = urls.slice(0, limit);
-  console.log(`\nПарсинг ${toProcess.length} из ${urls.length} студий...\n`);
-
+  console.log(`\nПарсинг ${toProcess.length} из ${urls.length} студий (Playwright)...\n`);
   for (let i = 0; i < toProcess.length; i++) {
     await processStudio(toProcess[i]);
-    // Rate limit: 15 req/min for Gemini free tier
     if ((i + 1) % 14 === 0) {
-      console.log("\n⏳ Пауза 60 сек (лимит Gemini)...\n");
-      await new Promise((r) => setTimeout(r, 60000));
-    } else {
-      await new Promise((r) => setTimeout(r, 2000));
+      console.log("\n⏳ Пауза 60 сек...\n");
+      await new Promise(r => setTimeout(r, 60000));
     }
   }
-
+  await browser.close();
   console.log("\n✅ Готово!");
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error(err);
-  prisma.$disconnect();
-  process.exit(1);
-});
+main().catch(console.error);
