@@ -112,5 +112,6 @@ model CompanyData {
   contracts       Json?
   enforcementsCount Int    @default(0)
   enforcements    Json?
+  rawCheckko      Json?
   fetchedAt       DateTime @default(now())
 }
