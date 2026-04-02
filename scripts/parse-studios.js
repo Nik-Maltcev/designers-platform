@@ -3,8 +3,8 @@ import { chromium } from "playwright";
 import fs from "fs";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+const KIMI_KEY = process.env.MOONSHOT_API_KEY;
+const KIMI_URL = "https://api.moonshot.cn/v1/chat/completions";
 
 const urls = fs.readFileSync("designer.csv", "utf-8")
   .split("\n").map(u => u.trim()).filter(Boolean)
@@ -48,27 +48,38 @@ async function getPage(url, timeout = 15000) {
   }
 }
 
-async function askGemini(text, prompt) {
+async function askAI(text, prompt) {
   try {
-    const res = await fetch(GEMINI_URL, {
+    const res = await fetch(KIMI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${KIMI_KEY}`,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt + "\n\n" + text }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 4000 },
+        model: "kimi-k2-turbo-preview",
+        messages: [
+          { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown." },
+          { role: "user", content: prompt + "\n\n" + text },
+          { role: "assistant", content: "{", partial: true },
+        ],
+        temperature: 0.1,
+        max_tokens: 4000,
       }),
     });
     const data = await res.json();
-    if (data.error?.code === 429) {
-      console.log("  ⏳ Rate limit, waiting 60s...");
-      await new Promise(r => setTimeout(r, 60000));
-      return askGemini(text, prompt);
+    if (data.error) {
+      if (data.error.type === "rate_limit_exceeded") {
+        console.log("  ⏳ Kimi rate limit, waiting 10s...");
+        await new Promise(r => setTimeout(r, 10000));
+        return askAI(text, prompt);
+      }
+      throw new Error(data.error.message);
     }
-    if (data.error) throw new Error(data.error.message);
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    const raw = "{" + (data.choices?.[0]?.message?.content || "");
+    return JSON.parse(raw);
   } catch (err) {
-    console.log(`  ⚠ Gemini: ${err.message}`);
+    console.log(`  ⚠ AI: ${err.message}`);
     return null;
   }
 }
@@ -95,7 +106,7 @@ async function processStudio(url) {
   if (!main) { console.log(`  ✗ failed`); return; }
 
   // Get studio info from Gemini
-  const info = await askGemini(main.text, `Сайт дизайн-студии. URL: ${normalized}. Верни JSON (без markdown):
+  const info = await askAI(main.text, `Сайт дизайн-студии. URL: ${normalized}. Верни JSON (без markdown):
 {"name":"Название","description":"Описание 2-3 предложения","city":"Город","inn":"ИНН если есть","segment":"premium/medium-plus/medium","objectTypes":["Квартиры","Дома"],"services":["Дизайн-проект"]}`);
   if (!info?.name) { console.log(`  ✗ Gemini fail`); return; }
 
@@ -117,7 +128,7 @@ async function processStudio(url) {
   for (const link of projectLinks) {
     const pp = await getPage(link, 10000);
     if (!pp) continue;
-    const pInfo = await askGemini(pp.text.slice(0, 3000),
+    const pInfo = await askAI(pp.text.slice(0, 3000),
       `Страница проекта дизайн-студии. Верни JSON: {"title":"Название","description":"1-2 предложения","year":"год","objectType":"тип","skip":false}. Если это НЕ проект (блог, услуги и т.д.) — {"skip":true}`);
     if (!pInfo || pInfo.skip) continue;
     projects.push({
