@@ -1,10 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { chromium } from "playwright";
 import fs from "fs";
+import "dotenv/config";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const KIMI_KEY = process.env.MOONSHOT_API_KEY;
-const KIMI_URL = "https://api.moonshot.cn/v1/chat/completions";
+const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_MODEL = "kimi-k2-0905-preview";
 
 const urls = fs.readFileSync("designer.csv", "utf-8")
   .split("\n").map(u => u.trim()).filter(Boolean)
@@ -57,27 +59,26 @@ async function askAI(text, prompt) {
         "Authorization": `Bearer ${KIMI_KEY}`,
       },
       body: JSON.stringify({
-        model: "kimi-k2-turbo-preview",
+        model: KIMI_MODEL,
         messages: [
           { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown." },
           { role: "user", content: prompt + "\n\n" + text },
-          { role: "assistant", content: "{", partial: true },
         ],
-        temperature: 0.1,
+        temperature: 1,
         max_tokens: 4000,
       }),
     });
     const data = await res.json();
     if (data.error) {
-      if (data.error.type === "rate_limit_exceeded") {
-        console.log("  ⏳ Kimi rate limit, waiting 10s...");
-        await new Promise(r => setTimeout(r, 10000));
+      if (data.error.type === "rate_limit_exceeded" || data.error.message?.includes("overloaded")) {
+        console.log("  ⏳ AI busy, waiting 15s...");
+        await new Promise(r => setTimeout(r, 15000));
         return askAI(text, prompt);
       }
       throw new Error(data.error.message);
     }
-    const raw = "{" + (data.choices?.[0]?.message?.content || "");
-    return JSON.parse(raw);
+    const raw = data.choices?.[0]?.message?.content || "";
+    return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch (err) {
     console.log(`  ⚠ AI: ${err.message}`);
     return null;
@@ -108,18 +109,45 @@ async function processStudio(url) {
   // Get studio info from Gemini
   const info = await askAI(main.text, `Сайт дизайн-студии. URL: ${normalized}. Верни JSON (без markdown):
 {"name":"Название","description":"Описание 2-3 предложения","city":"Город","inn":"ИНН если есть","segment":"premium/medium-plus/medium","objectTypes":["Квартиры","Дома"],"services":["Дизайн-проект"]}`);
-  if (!info?.name) { console.log(`  ✗ Gemini fail`); return; }
+  if (!info?.name) { console.log(`  ✗ AI fail`); return; }
 
-  // Find portfolio page
+  // Find portfolio page and click all tabs
   const portfolioPaths = ["/portfolio", "/projects", "/works", "/proekty", "/cases", "/raboty"];
   let projectLinks = [];
   for (const path of portfolioPaths) {
-    const pPage = await getPage(normalized.replace(/\/+$/, "") + path, 10000);
-    if (pPage && pPage.links.length > 3) {
+    const fullUrl = normalized.replace(/\/+$/, "") + path;
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+    const page = await ctx.newPage();
+    try {
+      await page.goto(fullUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await page.waitForTimeout(2000);
+
+      // Click all tab-like elements to reveal hidden content
+      const tabs = await page.$$('a[role="tab"], button[role="tab"], .tab, .tabs a, .tabs button, nav a, [data-tab], .filter a, .filter button, .category a, .category button');
+      for (const tab of tabs) {
+        try {
+          await tab.click();
+          await page.waitForTimeout(1500);
+        } catch { /* some tabs may not be clickable */ }
+      }
+
+      // Collect all links after clicking tabs
+      const links = await page.evaluate((baseHost) => {
+        return [...document.querySelectorAll("a[href]")]
+          .map(a => a.href)
+          .filter(h => h.includes(baseHost) && !h.includes("#") && !h.includes("mailto:") && !h.includes("tel:"))
+          .filter((h, i, a) => a.indexOf(h) === i);
+      }, new URL(fullUrl).hostname);
+
       const skip = ["/blog", "/uslugi", "/service", "/contact", "/about", "/price", "/news", "/faq", "/login", "/cart", "/policy"];
-      projectLinks = pPage.links.filter(l => !skip.some(s => l.toLowerCase().includes(s))).slice(0, 25);
-      console.log(`  📂 ${projectLinks.length} projects from ${path}`);
-      break;
+      projectLinks = links.filter(l => !skip.some(s => l.toLowerCase().includes(s))).slice(0, 40);
+      await ctx.close();
+      if (projectLinks.length > 3) {
+        console.log(`  📂 ${projectLinks.length} projects from ${path} (tabs clicked)`);
+        break;
+      }
+    } catch {
+      await ctx.close();
     }
   }
 
