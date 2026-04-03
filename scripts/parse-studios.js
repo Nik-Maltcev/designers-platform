@@ -32,8 +32,10 @@ async function getPage(url, timeout = 15000) {
     const text = await page.evaluate(() => document.body?.innerText?.slice(0, 8000) || "");
     const images = await page.evaluate(() => {
       return [...document.querySelectorAll("img")]
-        .map(img => img.src || img.dataset?.src || "")
-        .filter(s => s.startsWith("http") && !s.includes("logo") && !s.includes("icon") && !s.includes(".svg") && !s.includes("favicon"))
+        .map(img => ({ src: img.src || img.dataset?.src || img.dataset?.lazySrc || "", w: img.naturalWidth || img.width || 0, h: img.naturalHeight || img.height || 0 }))
+        .filter(i => i.src.startsWith("http") && !i.src.includes("logo") && !i.src.includes("icon") && !i.src.includes(".svg") && !i.src.includes("favicon") && !i.src.includes("pixel") && !i.src.includes("spacer"))
+        .sort((a, b) => (b.w * b.h) - (a.w * a.h))
+        .map(i => i.src)
         .filter((s, i, a) => a.indexOf(s) === i);
     });
     const links = await page.evaluate((baseHost) => {
