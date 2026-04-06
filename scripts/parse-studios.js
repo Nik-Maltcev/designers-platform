@@ -124,13 +124,14 @@ async function processStudio(url) {
       await page.goto(fullUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
       await page.waitForTimeout(2000);
 
-      // Click all tab-like elements to reveal hidden content
-      const tabs = await page.$$('a[role="tab"], button[role="tab"], .tab, .tabs a, .tabs button, nav a, [data-tab], .filter a, .filter button, .category a, .category button');
-      for (const tab of tabs) {
+      // Click tab-like elements to reveal hidden content
+      const tabs = await page.$$('[role="tab"], [data-tab], .tabs button, .filter-btn, .category-btn, .portfolio-filter a, .portfolio-filter button');
+      const maxTabs = Math.min(tabs.length, 6);
+      for (let t = 0; t < maxTabs; t++) {
         try {
-          await tab.click();
+          await tabs[t].click();
           await page.waitForTimeout(1500);
-        } catch { /* some tabs may not be clickable */ }
+        } catch { /* skip */ }
       }
 
       // Collect all links after clicking tabs
