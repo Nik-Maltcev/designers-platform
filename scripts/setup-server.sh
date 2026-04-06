@@ -48,14 +48,17 @@ npm install
 if [ ! -f ".env" ]; then
   cat > .env << 'ENVEOF'
 DATABASE_URL="postgresql://projektlist@localhost:5432/projektlist"
-AUTH_SECRET="ЗАМЕНИ_НА_СВОЙ_СЕКРЕТ"
+AUTH_SECRET="mWcQE7aKlm36orL0+f4aPR38T48ydQWUMuxNdRL2KA4"
 AUTH_TRUST_HOST=true
 EMAIL_SERVER_HOST="smtp.yandex.ru"
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER="verify@projectlist.pro"
-EMAIL_SERVER_PASSWORD="ЗАМЕНИ_НА_ПАРОЛЬ"
+EMAIL_SERVER_PASSWORD="Amx50100%heavytank"
 EMAIL_FROM="ПроектЛист <verify@projectlist.pro>"
-NEXTAUTH_URL="https://projectlist.pro"
+NEXTAUTH_URL="https://www.projectlist.pro"
+MOONSHOT_API_KEY="sk-Iq8P8Ce8pM279G3PuR8oXg7X4ONrlJbiib0UdBrzp57qKCys"
+CHECKKO_API_KEY="7PclHKCe9YOAvl29"
+DATANEWTON_API_KEY="LVGq6Yr41PyX"
 ENVEOF
   echo "⚠️  Отредактируй .env: nano /opt/designers-platform/.env"
 fi
