@@ -17,6 +17,18 @@ export async function GET() {
     role: user.role || "",
     companyName: user.companyName || "",
     city: user.city || "",
+    description: user.description || "",
+    inn: user.inn || "",
+    website: user.website || "",
+    categories: user.categories || [],
+    objectTypes: user.objectTypes || [],
+    segment: user.segment || "",
+    hasProduction: user.hasProduction || false,
+    hasInstallation: user.hasInstallation || false,
+    minBudget: user.minBudget || "",
+    estimateTime: user.estimateTime || "",
+    materials: user.materials || [],
+    services: user.services || [],
   });
 }
 
@@ -27,7 +39,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { name, phone, role, companyName, city } = body;
+  const { name, phone, role, companyName, city, description, inn, website, categories, objectTypes, segment, hasProduction, hasInstallation, minBudget, estimateTime, materials, services } = body;
 
   if (!name || !role) {
     return NextResponse.json({ error: "Имя и роль обязательны" }, { status: 400 });
@@ -46,7 +58,20 @@ export async function POST(request) {
       role,
       companyName: companyName || null,
       city: city || null,
+      description: description || null,
+      inn: inn || null,
+      website: website || null,
+      categories: categories || [],
+      objectTypes: objectTypes || [],
+      segment: segment || null,
+      hasProduction: hasProduction || false,
+      hasInstallation: hasInstallation || false,
+      minBudget: minBudget || null,
+      estimateTime: estimateTime || null,
+      materials: materials || [],
+      services: services || [],
       profileFilled: true,
+      lastActive: new Date(),
     },
   });
 

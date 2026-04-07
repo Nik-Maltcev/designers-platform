@@ -19,6 +19,22 @@ model User {
   city          String?
   companyId     String?
   profileFilled Boolean   @default(false)
+  // Card fields
+  description   String?
+  inn           String?
+  website       String?
+  categories    String[]
+  objectTypes   String[]
+  segment       String?
+  regions       String[]
+  hasProduction Boolean   @default(false)
+  hasInstallation Boolean @default(false)
+  minBudget     String?
+  estimateTime  String?
+  materials     String[]
+  services      String[]
+  verified      Boolean   @default(false)
+  lastActive    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
