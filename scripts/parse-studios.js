@@ -72,20 +72,10 @@ async function askAI(text, prompt) {
     { role: "user", content: prompt + "\n\n" + text },
   ];
   try {
-    // Try Kimi first
-    const raw = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, messages);
+    const raw = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", messages);
     return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch (err) {
-    console.log(`  ⚠ Kimi: ${err.message}`);
-    if (DEEPSEEK_KEY) {
-      try {
-        // Fallback to DeepSeek
-        const raw = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", messages);
-        return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      } catch (err2) {
-        console.log(`  ⚠ DeepSeek: ${err2.message}`);
-      }
-    }
+    console.log(`  ⚠ DeepSeek: ${err.message}`);
     return null;
   }
 }
