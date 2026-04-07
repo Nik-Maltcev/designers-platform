@@ -152,3 +152,46 @@ model AuditLog {
   meta      Json?
   createdAt DateTime @default(now())
 }
+
+model ProjectRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  role        String
+  category    String
+  location    String?
+  objectType  String?
+  level       String?
+  urgency     String?
+  description String?
+  contactName String?
+  contactPhone String?
+  contactEmail String?
+  hidePhone   Boolean  @default(false)
+  status      String   @default("new")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ClaimCard {
+  id          String   @id @default(cuid())
+  userId      String
+  companyName String
+  inn         String?
+  website     String?
+  phone       String?
+  contactName String?
+  position    String?
+  email       String?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+}

@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function PostProjectPage() {
+  const router = useRouter();
   const [level, setLevel] = useState("medium-plus");
   const [files, setFiles] = useState([]);
   const [showCurator, setShowCurator] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const fileRef = useRef(null);
 
   function handleFiles(e) {
@@ -16,6 +19,51 @@ export default function PostProjectPage() {
 
   function removeFile(index) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    const fd = new FormData(e.target);
+    const data = {
+      role: fd.get("role"),
+      category: fd.get("category"),
+      location: fd.get("location"),
+      objectType: fd.get("objectType"),
+      level,
+      urgency: fd.get("urgency"),
+      description: fd.get("description"),
+      contactName: fd.get("contactName"),
+      contactPhone: fd.get("contactPhone"),
+      contactEmail: fd.get("contactEmail"),
+      hidePhone: fd.get("hidePhone") === "on",
+    };
+    try {
+      const res = await fetch("/api/project-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      }
+    } catch {}
+    setSubmitting(false);
+  }
+
+  if (submitted) {
+    return (
+      <main className="pt-32 pb-24 px-6 flex items-center justify-center min-h-screen">
+        <div className="w-full max-w-md text-center space-y-6">
+          <div className="mx-auto w-20 h-20 bg-primary-fixed rounded-full flex items-center justify-center">
+            <span className="material-symbols-outlined text-4xl text-primary">check_circle</span>
+          </div>
+          <h1 className="font-headline text-3xl font-extrabold text-primary">Проект отправлен</h1>
+          <p className="text-on-surface-variant">Мы подберём 3-5 подрядчиков в течение 48 часов и свяжемся с вами.</p>
+          <button onClick={() => router.push("/my-requests")} className="hero-gradient text-on-primary px-8 py-3 rounded-lg font-bold">Мои запросы</button>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -31,13 +79,13 @@ export default function PostProjectPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8">
-          <form className="space-y-12">
+          <form onSubmit={handleSubmit} className="space-y-12">
             <section className="bg-surface-container-low p-8 rounded-xl space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <label className="block font-headline font-bold text-sm uppercase tracking-widest text-primary">Кто вы?</label>
                   <div className="relative">
-                    <select className="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+                    <select name="role" className="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
                       <option>Дизайнер</option>
                       <option>Архитектор</option>
                       <option>Комплектатор</option>
@@ -49,7 +97,7 @@ export default function PostProjectPage() {
                 <div className="space-y-3">
                   <label className="block font-headline font-bold text-sm uppercase tracking-widest text-primary">Что подбираем?</label>
                   <div className="relative">
-                    <select className="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+                    <select name="category" className="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
                       <option>Мебель</option>
                       <option>Освещение</option>
                       <option>Отделочные материалы</option>
@@ -67,7 +115,7 @@ export default function PostProjectPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-outline uppercase">Расположение объекта</label>
-                  <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Москва, Россия" type="text" />
+                  <input name="location" className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Москва, Россия" type="text" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-outline uppercase">Тип объекта</label>
@@ -118,7 +166,7 @@ export default function PostProjectPage() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Описание проекта</label>
-                <textarea className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 resize-none" placeholder="Опишите требования, стилистические предпочтения или технические ограничения..." rows="4"></textarea>
+                <textarea name="description" className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 resize-none" placeholder="Опишите требования, стилистические предпочтения или технические ограничения..." rows="4"></textarea>
               </div>
             </section>
 
@@ -152,26 +200,26 @@ r text-xs hover:text-error/80">✕</button>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Телефон</label>
-                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="+7 (___) ___-__-__" type="tel" />
+                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" name="contactPhone" placeholder="+7 (___) ___-__-__" type="tel" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Эл. почта</label>
-                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="name@company.ru" type="email" />
+                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" name="contactEmail" placeholder="name@company.ru" type="email" />
               </div>
             </section>
 
             <footer className="space-y-8 pt-8 border-t border-outline-variant/20">
               <div className="flex items-start gap-4 p-4 bg-secondary-container/30 rounded-lg">
                 <div className="flex items-center h-6">
-                  <input className="w-5 h-5 text-primary border-outline rounded focus:ring-primary" type="checkbox" />
+                  <input className="w-5 h-5 text-primary border-outline rounded focus:ring-primary" type="checkbox" name="hidePhone" />
                 </div>
                 <label className="text-sm font-medium leading-relaxed">
                   Не показывать мой телефон подрядчикам без согласия.
                   <span className="block text-xs text-on-surface-variant mt-1">Мы передадим ваш контакт только после того, как вы одобрите конкретное предложение куратора.</span>
                 </label>
               </div>
-              <button className="w-full md:w-auto hero-gradient text-on-primary px-12 py-5 rounded-lg font-headline font-bold text-xl shadow-xl hover:scale-[1.02] transition-transform" type="submit">
-                Отправить проект на подбор
+              <button disabled={submitting} className="w-full md:w-auto hero-gradient text-on-primary px-12 py-5 rounded-lg font-headline font-bold text-xl shadow-xl hover:scale-[1.02] transition-transform disabled:opacity-50" type="submit">
+                {submitting ? "Отправляем..." : "Отправить проект на подбор"}
               </button>
             </footer>
           </form>
