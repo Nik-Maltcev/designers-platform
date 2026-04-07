@@ -2,6 +2,24 @@ import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+
+  return NextResponse.json({
+    name: user.name || "",
+    phone: user.phone || "",
+    role: user.role || "",
+    companyName: user.companyName || "",
+    city: user.city || "",
+  });
+}
+
 export async function POST(request) {
   const session = await auth();
   if (!session?.user?.id) {

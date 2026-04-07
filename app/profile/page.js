@@ -30,6 +30,15 @@ export default function ProfilePage() {
     city: "",
   });
 
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.name || data.role) setForm(data);
+      })
+      .catch(() => {});
+  }, []);
+
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
