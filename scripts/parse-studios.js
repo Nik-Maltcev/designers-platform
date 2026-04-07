@@ -55,27 +55,54 @@ async function getPage(url, timeout = 15000) {
   }
 }
 
-async function callLLM(url, key, model, messages) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ model, messages, temperature: 1, max_tokens: 4000 }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content || "";
+async function callLLM(url, key, model, messages, attempt = 0) {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ model, messages, temperature: 1, max_tokens: 4000 }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      if (attempt < 3 && (data.error.message?.includes("overloaded") || data.error.message?.includes("rate") || res.status === 429 || res.status === 503)) {
+        console.log(`  ⏳ Retry ${attempt + 1}/3 in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+        return callLLM(url, key, model, messages, attempt + 1);
+      }
+      throw new Error(data.error.message);
+    }
+    return data.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    if (attempt < 3 && err.message?.includes("fetch failed")) {
+      console.log(`  ⏳ Network retry ${attempt + 1}/3...`);
+      await new Promise(r => setTimeout(r, 3000));
+      return callLLM(url, key, model, messages, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 async function askAI(text, prompt) {
   const messages = [
-    { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown." },
+    { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown обёрток." },
     { role: "user", content: prompt + "\n\n" + text },
   ];
   try {
     const raw = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", messages);
-    return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // Retry with stricter prompt if JSON invalid
+      const raw2 = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", [
+        ...messages,
+        { role: "assistant", content: cleaned },
+        { role: "user", content: "Это невалидный JSON. Исправь и верни только валидный JSON." },
+      ]);
+      return JSON.parse(raw2.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    }
   } catch (err) {
-    console.log(`  ⚠ DeepSeek: ${err.message}`);
+    console.log(`  ⚠ AI: ${err.message}`);
     return null;
   }
 }
@@ -180,7 +207,11 @@ async function processStudio(url) {
     if (inn) console.log(`  📋 INN: ${inn}`);
   }
 
-  const slug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
+  const baseSlug = slugify(info.name) || slugify(normalized.replace(/https?:\/\//, ""));
+  let slug = baseSlug;
+  const existingSlug = await prisma.studio.findUnique({ where: { slug } });
+  if (existingSlug) slug = baseSlug + "-" + Date.now().toString(36);
+
   try {
     await prisma.studio.create({
       data: {
@@ -202,7 +233,11 @@ async function main() {
   const toProcess = urls.slice(0, limit);
   console.log(`\nПарсинг ${toProcess.length} из ${urls.length} студий (Playwright)...\n`);
   for (let i = 0; i < toProcess.length; i++) {
-    await processStudio(toProcess[i]);
+    try {
+      await processStudio(toProcess[i]);
+    } catch (err) {
+      console.log(`  💥 Crash: ${err.message}`);
+    }
     if ((i + 1) % 14 === 0) {
       console.log("\n⏳ Пауза 60 сек...\n");
       await new Promise(r => setTimeout(r, 60000));
