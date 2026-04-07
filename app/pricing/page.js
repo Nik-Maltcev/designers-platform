@@ -25,7 +25,7 @@ export default function PricingPage() {
         <div className="lg:col-span-5 bg-surface-container-low p-8 md:p-12 rounded-xl flex flex-col h-full group hover:bg-surface-container transition-colors duration-500">
           <div className="mb-10">
             <h3 className="text-2xl font-bold font-headline mb-2 text-on-surface">Бесплатный</h3>
-            <div className="text-4xl font-black font-headline text-on-surface">0 ₽ <span className="text-sm font-normal text-on-surface-variant tracking-normal">/мес</span></div>
+            <div className="text-4xl font-black font-headline text-on-surface">0 ₽ <span className="text-sm font-normal text-on-surface-variant tracking-normal">навсегда</span></div>
           </div>
           <ul className="space-y-5 mb-12 flex-grow">
             <li className="flex items-start gap-3">
@@ -61,7 +61,7 @@ export default function PricingPage() {
           </div>
           <div className="mb-10 relative z-10">
             <h3 className="text-2xl font-bold font-headline mb-2 text-primary">Профи</h3>
-            <div className="text-4xl md:text-5xl font-black font-headline text-on-surface">4 990 ₽ <span className="text-sm font-normal text-on-surface-variant tracking-normal">/мес</span></div>
+            <div className="text-4xl md:text-5xl font-black font-headline text-on-surface">29 990 ₽ <span className="text-sm font-normal text-on-surface-variant tracking-normal">/год</span></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 mb-12 flex-grow relative z-10">
             <ul className="space-y-5">
