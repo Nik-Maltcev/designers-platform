@@ -45,6 +45,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verifyRequest: "/login/check-email",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) return baseUrl + url;
+      return baseUrl + "/dashboard";
+    },
     authorized({ auth: session, request }) {
       const isLoggedIn = !!session?.user;
       const isProtected = request.nextUrl.pathname.startsWith("/dashboard") ||
