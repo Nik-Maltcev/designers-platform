@@ -8,6 +8,9 @@ const KIMI_KEY = process.env.MOONSHOT_API_KEY;
 const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
 const KIMI_MODEL = "kimi-k2-0905-preview";
 
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
+
 const urls = fs.readFileSync("designer.csv", "utf-8")
   .split("\n").map(u => u.trim()).filter(Boolean)
   .filter((u, i, a) => a.indexOf(u) === i);
@@ -52,37 +55,37 @@ async function getPage(url, timeout = 15000) {
   }
 }
 
+async function callLLM(url, key, model, messages) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model, messages, temperature: 1, max_tokens: 4000 }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content || "";
+}
+
 async function askAI(text, prompt) {
+  const messages = [
+    { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown." },
+    { role: "user", content: prompt + "\n\n" + text },
+  ];
   try {
-    const res = await fetch(KIMI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${KIMI_KEY}`,
-      },
-      body: JSON.stringify({
-        model: KIMI_MODEL,
-        messages: [
-          { role: "system", content: "Ты анализируешь сайты дизайн-студий. Всегда отвечай только валидным JSON без markdown." },
-          { role: "user", content: prompt + "\n\n" + text },
-        ],
-        temperature: 1,
-        max_tokens: 4000,
-      }),
-    });
-    const data = await res.json();
-    if (data.error) {
-      if (data.error.type === "rate_limit_exceeded" || data.error.message?.includes("overloaded")) {
-        console.log("  ⏳ AI busy, waiting 15s...");
-        await new Promise(r => setTimeout(r, 15000));
-        return askAI(text, prompt);
-      }
-      throw new Error(data.error.message);
-    }
-    const raw = data.choices?.[0]?.message?.content || "";
+    // Try Kimi first
+    const raw = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, messages);
     return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch (err) {
-    console.log(`  ⚠ AI: ${err.message}`);
+    console.log(`  ⚠ Kimi: ${err.message}`);
+    if (DEEPSEEK_KEY) {
+      try {
+        // Fallback to DeepSeek
+        const raw = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", messages);
+        return JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+      } catch (err2) {
+        console.log(`  ⚠ DeepSeek: ${err2.message}`);
+      }
+    }
     return null;
   }
 }
