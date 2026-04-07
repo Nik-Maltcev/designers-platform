@@ -39,6 +39,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+
+  @@index([role, profileFilled])
+  @@index([city])
+  @@index([segment])
 }
 
 model Account {
@@ -95,6 +99,10 @@ model Studio {
   updatedAt   DateTime  @updatedAt
   projects    Project[]
   companyData CompanyData?
+
+  @@index([segment])
+  @@index([city])
+  @@index([projectCount])
 }
 
 model Project {

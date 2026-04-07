@@ -45,6 +45,14 @@ export async function POST(request) {
     return NextResponse.json({ error: "Имя и роль обязательны" }, { status: 400 });
   }
 
+  // Validation
+  if (typeof name !== "string" || name.length > 200) return NextResponse.json({ error: "Имя слишком длинное" }, { status: 400 });
+  if (description && description.length > 2000) return NextResponse.json({ error: "Описание слишком длинное" }, { status: 400 });
+  if (inn && !/^\d{10,12}$/.test(inn)) return NextResponse.json({ error: "ИНН должен содержать 10-12 цифр" }, { status: 400 });
+  if (phone && phone.length > 20) return NextResponse.json({ error: "Телефон слишком длинный" }, { status: 400 });
+  if (Array.isArray(categories) && categories.length > 20) return NextResponse.json({ error: "Слишком много категорий" }, { status: 400 });
+  if (Array.isArray(materials) && materials.length > 30) return NextResponse.json({ error: "Слишком много материалов" }, { status: 400 });
+
   const allowedRoles = ["designer", "contractor", "supplier", "architect", "completer"];
   if (!allowedRoles.includes(role)) {
     return NextResponse.json({ error: "Недопустимая роль" }, { status: 400 });

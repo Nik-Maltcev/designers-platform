@@ -119,7 +119,7 @@ export default function PostProjectPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-outline uppercase">Тип объекта</label>
-                  <select className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
+                  <select name="objectType" className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40 appearance-none">
                     <option>Квартира</option>
                     <option>Дом</option>
                     <option>Офис</option>
@@ -157,7 +157,7 @@ export default function PostProjectPage() {
                 <div className="flex flex-wrap gap-3">
                   {["Срочно", "2 недели", "Месяц", "Позже"].map((u, i) => (
                     <label key={u} className="cursor-pointer">
-                      <input className="hidden peer" name="urgency" type="radio" defaultChecked={i === 1} />
+                      <input className="hidden peer" name="urgency" type="radio" value={u} defaultChecked={i === 1} />
                       <span className="px-6 py-3 rounded-full border border-outline-variant peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all inline-block font-medium">{u}</span>
                     </label>
                   ))}
@@ -196,7 +196,7 @@ r text-xs hover:text-error/80">✕</button>
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Имя</label>
-                <input className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Константин" type="text" />
+                <input name="contactName" className="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/40" placeholder="Константин" type="text" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-outline uppercase">Телефон</label>
