@@ -132,3 +132,23 @@ model CompanyData {
   rawDataNewton   Json?
   fetchedAt       DateTime @default(now())
 }
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  targetId  String
+  targetType String  // "studio" or "contractor"
+  createdAt DateTime @default(now())
+
+  @@unique([userId, targetId, targetType])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  targetId  String?
+  targetType String?
+  meta      Json?
+  createdAt DateTime @default(now())
+}
