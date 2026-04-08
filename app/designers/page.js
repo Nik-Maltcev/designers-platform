@@ -8,7 +8,18 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-const PER_PAGE = 20;
+const PER_PAGE = 12;
+
+const OBJECT_TYPES = ["Квартиры", "Дома", "Офисы", "HoReCa", "Клиники"];
+const CITIES = ["Москва", "МО", "СПб", "Вся Россия"];
+const SEGMENTS = ["medium", "medium-plus", "premium"];
+const SERVICES = ["Дизайн-проект", "Комплектация", "Авторский надзор"];
+
+function segmentLabel(s) {
+  if (s === "premium") return "Premium";
+  if (s === "medium-plus") return "Medium+";
+  return "Medium";
+}
 
 export default async function DesignersPage({ searchParams }) {
   const params = await searchParams;
@@ -16,7 +27,9 @@ export default async function DesignersPage({ searchParams }) {
   const search = params?.q || "";
   const segment = params?.segment || "";
   const city = params?.city || "";
+  const objectType = params?.objectType || "";
   const sort = params?.sort || "projects";
+  const verifiedOnly = params?.verified === "1";
   const skip = (page - 1) * PER_PAGE;
 
   const where = {
@@ -28,106 +41,255 @@ export default async function DesignersPage({ searchParams }) {
     }),
     ...(segment && { segment }),
     ...(city && { city }),
+    ...(objectType && { objectTypes: { has: objectType } }),
+    ...(verifiedOnly && { verified: true }),
   };
 
   const orderBy = sort === "name" ? { name: "asc" } : sort === "newest" ? { createdAt: "desc" } : { projectCount: "desc" };
 
   const [studios, total] = await Promise.all([
-    prisma.studio.findMany({ where, orderBy, skip, take: PER_PAGE, include: { projects: { take: 1 } } }),
+    prisma.studio.findMany({ where, orderBy, skip, take: PER_PAGE, include: { projects: { take: 2 } } }),
     prisma.studio.count({ where }),
   ]);
 
   const totalPages = Math.ceil(total / PER_PAGE);
 
   function buildUrl(overrides) {
-    const p = { page: String(page), q: search, segment, city, sort, ...overrides };
+    const p = { page: "1", q: search, segment, city, objectType, sort, verified: verifiedOnly ? "1" : "", ...overrides };
     const qs = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
     return `/designers?${qs}`;
   }
 
   return (
     <div className="pt-24 pb-12">
-      <main className="flex-1 px-8 lg:px-12 max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-on-surface mb-4">Дизайнеры, архитекторы и комплектаторы</h1>
-          <p className="text-on-surface-variant">{total > 0 ? `${total} студий. Страница ${page} из ${totalPages}.` : "Каталог загружается."}</p>
-        </header>
+      <div className="flex max-w-[1400px] mx-auto px-6 lg:px-10 gap-8">
+        {/* Sidebar Filters */}
+        <aside className="hidden lg:block w-56 flex-shrink-0 pt-2">
+          <form>
+            <input type="hidden" name="sort" value={sort} />
 
-        {/* Search + Filters */}
-        <form className="mb-8 space-y-4">
-          <div className="relative max-w-2xl">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
-            <input name="q" defaultValue={search} placeholder="Поиск по названию студии..." className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-xl border-none focus:ring-2 focus:ring-primary/40 text-lg" />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <select name="segment" defaultValue={segment} className="bg-surface-container-low border-none rounded-lg px-4 py-2 text-sm">
-              <option value="">Все сегменты</option>
-              <option value="medium">Средний</option>
-              <option value="medium-plus">Средний+</option>
-              <option value="premium">Премиум</option>
-            </select>
-            <select name="city" defaultValue={city} className="bg-surface-container-low border-none rounded-lg px-4 py-2 text-sm">
-              <option value="">Все города</option>
-              <option value="Москва">Москва</option>
-              <option value="Санкт-Петербург">СПб</option>
-            </select>
-            <select name="sort" defaultValue={sort} className="bg-surface-container-low border-none rounded-lg px-4 py-2 text-sm">
-              <option value="projects">По проектам</option>
-              <option value="newest">Новые</option>
-              <option value="name">По названию</option>
-            </select>
-            <button type="submit" className="hero-gradient text-on-primary px-6 py-2 rounded-lg font-bold text-sm">Найти</button>
-          </div>
-        </form>
-
-        {/* Results */}
-        <div className="grid grid-cols-1 gap-8">
-          {studios.map((studio) => (
-            <article key={studio.id} className="bg-surface-container-lowest p-8 rounded-xl flex flex-col md:flex-row gap-8 hover:bg-surface-container-low transition-all group">
-              <div className="w-full md:w-56 h-48 flex-shrink-0 overflow-hidden rounded-lg bg-surface-container-high">
-                {studio.imageUrl ? (
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={studio.name} src={studio.imageUrl} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined text-4xl text-outline">apartment</span></div>
-                )}
+            {/* Object Type */}
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Тип объекта</h3>
+              <div className="space-y-2">
+                {OBJECT_TYPES.map((t) => (
+                  <label key={t} className="flex items-center gap-2 cursor-pointer group">
+                    <input type="checkbox" name="objectType" value={t} defaultChecked={objectType === t}
+                      className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30" />
+                    <span className="text-sm text-on-surface-variant group-hover:text-on-surface">{t}</span>
+                  </label>
+                ))}
               </div>
-              <div className="flex-1 flex flex-col">
-                <div className="mb-4">
-                  <h2 className="font-headline text-2xl font-bold text-primary mb-1">{studio.name}</h2>
-                  <div className="flex gap-2 flex-wrap">
-                    {studio.verified && <span className="bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">Проверен</span>}
-                    {studio.city && <span className="flex items-center gap-1 text-xs text-outline"><span className="material-symbols-outlined text-xs">location_on</span>{studio.city}</span>}
+            </div>
+
+            {/* Geography */}
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">География</h3>
+              <div className="space-y-2">
+                {CITIES.map((c) => (
+                  <label key={c} className="flex items-center gap-2 cursor-pointer group">
+                    <input type="radio" name="city" value={c === "Вся Россия" ? "" : c}
+                      defaultChecked={city === c || (c === "Вся Россия" && !city)}
+                      className="w-4 h-4 border-slate-300 text-primary focus:ring-primary/30" />
+                    <span className={`text-sm ${city === c ? "font-semibold text-on-surface bg-primary text-white px-3 py-1 rounded-md -ml-1" : "text-on-surface-variant group-hover:text-on-surface"}`}>{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Segment */}
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Сегмент</h3>
+              <div className="space-y-2">
+                {SEGMENTS.map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer group">
+                    <span className={`text-sm px-4 py-1.5 rounded-full border cursor-pointer transition-all ${segment === s ? "border-primary bg-primary text-white font-semibold" : "border-slate-200 text-on-surface-variant hover:border-slate-400"}`}>
+                      {segmentLabel(s)}
+                    </span>
+                    <input type="radio" name="segment" value={s} defaultChecked={segment === s} className="sr-only" />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Services */}
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Услуги</h3>
+              <div className="space-y-2">
+                {SERVICES.map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer group">
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30" />
+                    <span className="text-sm text-on-surface-variant group-hover:text-on-surface">{s}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Verified toggle */}
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Активность</h3>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm text-on-surface-variant flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>
+                  Verified Only
+                </span>
+                <input type="hidden" name="verified" value={verifiedOnly ? "1" : "0"} />
+                <div className={`w-10 h-5 rounded-full relative transition-colors ${verifiedOnly ? "bg-primary" : "bg-slate-200"}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow ${verifiedOnly ? "left-5" : "left-0.5"}`}></div>
+                </div>
+              </label>
+            </div>
+
+            <button type="submit" className="w-full hero-gradient text-on-primary py-2.5 rounded-lg font-bold text-sm">Применить</button>
+          </form>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          <header className="mb-8">
+            <h1 className="font-headline text-4xl lg:text-5xl font-extrabold tracking-tighter text-on-surface mb-3">
+              Дизайнеры, архитекторы и комплектаторы
+            </h1>
+            <p className="text-on-surface-variant text-sm max-w-2xl">
+              Профессиональное сообщество верифицированных экспертов. Используйте расширенные фильтры для подбора партнера по архитектурным и интерьерным задачам любого масштаба.
+            </p>
+          </header>
+
+          {/* Sort tabs */}
+          <div className="flex items-center gap-1 mb-8 text-sm">
+            <span className="text-on-surface-variant mr-2">Сортировать по:</span>
+            {[
+              { key: "projects", label: "Сходство проектов" },
+              { key: "newest", label: "Активность" },
+              { key: "name", label: "Масштаб" },
+            ].map((s) => (
+              <Link key={s.key} href={buildUrl({ sort: s.key })}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${sort === s.key ? "bg-primary text-white" : "text-on-surface-variant hover:bg-slate-100"}`}>
+                {s.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Studio Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {studios.map((studio) => (
+              <article key={studio.id} className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-lg transition-all group">
+                <div className="flex">
+                  {/* Image */}
+                  <div className="w-40 h-full flex-shrink-0 bg-slate-100 relative overflow-hidden">
+                    {studio.imageUrl ? (
+                      <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        alt={studio.name} src={studio.imageUrl} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center min-h-[200px]">
+                        <span className="material-symbols-outlined text-4xl text-slate-300">apartment</span>
+                      </div>
+                    )}
+                    {/* Bookmark */}
+                    <button className="absolute top-2 right-2 w-7 h-7 bg-white/80 rounded flex items-center justify-center hover:bg-white transition-colors" aria-label="Добавить в избранное">
+                      <span className="material-symbols-outlined text-lg text-slate-500">bookmark</span>
+                    </button>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 p-4 flex flex-col min-w-0">
+                    <h2 className="font-headline text-lg font-bold text-on-surface mb-1.5 truncate">{studio.name}</h2>
+
+                    {/* Badges */}
+                    <div className="flex gap-1.5 flex-wrap mb-3">
+                      {studio.verified && (
+                        <span className="bg-primary text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Verified</span>
+                      )}
+                      {studio.active && (
+                        <span className="bg-slate-700 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Active</span>
+                      )}
+                    </div>
+
+                    {/* Meta grid */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 text-[11px]">
+                      {studio.objectTypes.length > 0 && (
+                        <div>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Object type</p>
+                          <p className="font-semibold text-on-surface text-xs">{studio.objectTypes.slice(0, 2).join(", ")}</p>
+                        </div>
+                      )}
+                      {studio.segment && (
+                        <div>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Segment</p>
+                          <p className="font-semibold text-on-surface text-xs">{segmentLabel(studio.segment)}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Projects</p>
+                        <p className="font-semibold text-on-surface text-xs">{studio.projectCount} cases</p>
+                      </div>
+                      {studio.city && (
+                        <div>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Location</p>
+                          <p className="font-semibold text-on-surface text-xs">{studio.city}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-auto flex gap-2">
+                      <Link href={`/studio/${studio.slug}`}
+                        className="hero-gradient text-white text-xs font-bold px-4 py-2 rounded transition-all hover:opacity-90">
+                        Open contacts/Invite
+                      </Link>
+                      <Link href={`/studio/${studio.slug}`}
+                        className="border border-slate-200 text-on-surface text-xs font-medium px-4 py-2 rounded hover:bg-slate-50 transition-colors">
+                        Open Profile
+                      </Link>
+                    </div>
                   </div>
                 </div>
-                {studio.description && <p className="text-sm text-on-surface-variant mb-4 line-clamp-2">{studio.description}</p>}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6 mb-6">
-                  {studio.objectTypes.length > 0 && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Тип объекта</p><p className="text-sm font-semibold">{studio.objectTypes.slice(0, 2).join(", ")}</p></div>}
-                  {studio.segment && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Сегмент</p><p className="text-sm font-semibold">{studio.segment === "premium" ? "Премиум" : studio.segment === "medium-plus" ? "Средний+" : "Средний"}</p></div>}
-                  <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Проекты</p><p className="text-sm font-semibold">{studio.projectCount}</p></div>
-                  {studio.website && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Сайт</p><a href={studio.website} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline truncate block">{studio.website.replace(/https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a></div>}
-                </div>
-                <div className="mt-auto">
-                  <Link href={`/studio/${studio.slug}`} className="bg-surface-container-high text-primary text-xs font-bold px-4 py-2.5 rounded-md hover:bg-surface-container-highest transition-colors">Открыть профиль</Link>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-between border-t border-outline-variant pt-8">
-            <span className="text-xs font-bold text-outline tracking-widest uppercase">Показано {skip + 1}-{Math.min(skip + PER_PAGE, total)} из {total}</span>
-            <div className="flex gap-2">
-              {page > 1 && <Link href={buildUrl({ page: String(page - 1) })} className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-bold">← Назад</Link>}
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map((p) => (
-                <Link key={p} href={buildUrl({ page: String(p) })} className={`px-3 py-2 rounded-lg text-sm font-bold ${p === page ? "bg-primary text-on-primary" : "bg-surface-container-high"}`}>{p}</Link>
-              ))}
-              {page < totalPages && <Link href={buildUrl({ page: String(page + 1) })} className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-bold">Далее →</Link>}
-            </div>
+              </article>
+            ))}
           </div>
-        )}
-      </main>
+
+          {studios.length === 0 && (
+            <div className="text-center py-20">
+              <span className="material-symbols-outlined text-6xl text-outline mb-4">apartment</span>
+              <p className="text-on-surface-variant text-lg">{search ? "Ничего не найдено" : "Каталог загружается"}</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-12 flex items-center justify-between pt-8 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
+                Showing {skip + 1}-{Math.min(skip + PER_PAGE, total)} of {total} professionals
+              </span>
+              <div className="flex items-center gap-1">
+                {page > 1 && (
+                  <Link href={buildUrl({ page: String(page - 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100">
+                    <span className="material-symbols-outlined text-lg">arrow_back</span>
+                  </Link>
+                )}
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+                  <Link key={p} href={buildUrl({ page: String(p) })}
+                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium ${p === page ? "bg-primary text-white" : "hover:bg-slate-100"}`}>
+                    {String(p).padStart(2, "0")}
+                  </Link>
+                ))}
+                {totalPages > 5 && <span className="px-1 text-slate-400">...</span>}
+                {totalPages > 5 && (
+                  <Link href={buildUrl({ page: String(totalPages) })}
+                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium hover:bg-slate-100`}>
+                    {totalPages}
+                  </Link>
+                )}
+                {page < totalPages && (
+                  <Link href={buildUrl({ page: String(page + 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100">
+                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

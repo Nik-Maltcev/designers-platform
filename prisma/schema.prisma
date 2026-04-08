@@ -99,6 +99,7 @@ model Studio {
   updatedAt   DateTime  @updatedAt
   projects    Project[]
   companyData CompanyData?
+  reviewSummary ReviewSummary?
 
   @@index([segment])
   @@index([city])
@@ -302,4 +303,19 @@ model Subscription {
 
   @@index([userId])
   @@index([status])
+}
+
+model ReviewSummary {
+  id              String   @id @default(cuid())
+  studioId        String   @unique
+  studio          Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  avgRating       Float?
+  totalReviews    Int      @default(0)
+  positives       String[]
+  negatives       String[]
+  summary         String?
+  tone            String?   // "positive" | "mixed" | "negative"
+  sources         Json?     // [{platform, url, rating, reviewCount}]
+  rawSearchResults Json?
+  fetchedAt       DateTime @default(now())
 }

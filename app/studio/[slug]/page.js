@@ -18,7 +18,7 @@ export default async function StudioPage({ params }) {
   const { slug } = await params;
   const studio = await prisma.studio.findUnique({
     where: { slug },
-    include: { projects: true, companyData: true },
+    include: { projects: true, companyData: true, reviewSummary: true },
   });
 
   if (!studio) notFound();
@@ -196,6 +196,72 @@ export default async function StudioPage({ params }) {
               <p className="text-[10px] text-outline mt-2">Данные актуальны на {new Date(studio.companyData.fetchedAt).toLocaleDateString("ru-RU")}</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {studio.reviewSummary && (
+        <div className="bg-surface-container-lowest p-8 rounded-xl mb-16 border border-outline-variant/15">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold font-headline flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">reviews</span>
+              Отзывы
+            </h3>
+            {studio.reviewSummary.avgRating && (
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-extrabold text-on-surface">{studio.reviewSummary.avgRating.toFixed(1)}</span>
+                <div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star} className="material-symbols-outlined text-lg"
+                        style={{ fontVariationSettings: "'FILL' 1", color: star <= Math.round(studio.reviewSummary.avgRating) ? "#f59e0b" : "#d1d5db" }}>
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-outline">{studio.reviewSummary.totalReviews} отзывов</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {studio.reviewSummary.summary && (
+            <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">{studio.reviewSummary.summary}</p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {studio.reviewSummary.positives.length > 0 && (
+              <div>
+                <p className="text-xs uppercase font-bold text-teal-600 tracking-wider mb-2 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_up</span>
+                  Плюсы
+                </p>
+                <ul className="space-y-1.5">
+                  {studio.reviewSummary.positives.map((p, i) => (
+                    <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                      <span className="text-teal-500 mt-0.5">+</span> {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {studio.reviewSummary.negatives.length > 0 && (
+              <div>
+                <p className="text-xs uppercase font-bold text-amber-600 tracking-wider mb-2 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_down</span>
+                  Минусы
+                </p>
+                <ul className="space-y-1.5">
+                  {studio.reviewSummary.negatives.map((n, i) => (
+                    <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                      <span className="text-amber-500 mt-0.5">−</span> {n}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[10px] text-outline">Данные собраны {new Date(studio.reviewSummary.fetchedAt).toLocaleDateString("ru-RU")} из открытых источников</p>
         </div>
       )}
 
