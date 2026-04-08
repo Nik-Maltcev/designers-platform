@@ -178,6 +178,10 @@ model ProjectRequest {
   status      String   @default("new")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  proposals   Proposal[]
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Notification {
@@ -202,4 +206,83 @@ model ClaimCard {
   email       String?
   status      String   @default("pending")
   createdAt   DateTime @default(now())
+}
+
+model Company {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  inn           String?   @unique
+  ogrn          String?
+  website       String?
+  phone         String?
+  address       String?
+  city          String?
+  description   String?
+  logoUrl       String?
+  type          String    // "contractor" | "supplier" | "studio"
+  categories    String[]
+  objectTypes   String[]
+  segment       String?
+  regions       String[]
+  materials     String[]
+  hasProduction Boolean   @default(false)
+  hasInstallation Boolean @default(false)
+  minBudget     String?
+  estimateTime  String?
+  verified      Boolean   @default(false)
+  active        Boolean   @default(true)
+  ownerId       String?
+  source        String?
+  lastChecked   DateTime?
+  revenue       String?
+  employees     Int?
+  foundedYear   Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  proposals     Proposal[]
+  complaints    Complaint[]
+
+  @@index([type])
+  @@index([city])
+  @@index([segment])
+  @@index([verified])
+}
+
+model Proposal {
+  id          String   @id @default(cuid())
+  requestId   String
+  request     ProjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String
+  priceMin    Int?
+  priceMax    Int?
+  timeline    String?
+  comment     String?
+  hassamples  Boolean  @default(false)
+  conditions  String?
+  status      String   @default("sent")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([companyId])
+  @@index([status])
+}
+
+model Complaint {
+  id          String   @id @default(cuid())
+  userId      String
+  targetId    String
+  targetType  String   // "company" | "user" | "proposal"
+  reason      String
+  description String?
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+
+  @@index([status])
+  @@index([targetId])
 }
