@@ -57,9 +57,9 @@ export default async function RootLayout({ children }) {
               <div className="text-lg font-bold text-primary font-headline tracking-tighter">ПроектЛист</div>
               <p>© 2025 ПроектЛист. Данные обрабатываются на защищённых серверах в России в соответствии с законодательством.</p>
               <div className="flex space-x-6">
-                <Link href="#" className="text-slate-500 hover:text-primary transition-colors">Правила пользования сервисом</Link>
-                <Link href="#" className="text-slate-500 hover:text-primary transition-colors">Политика конфиденциальности</Link>
-                <Link href="#" className="text-slate-500 hover:text-primary transition-colors">Оферта</Link>
+                <Link href="/terms" className="text-slate-500 hover:text-primary transition-colors">Правила пользования сервисом</Link>
+                <Link href="/privacy" className="text-slate-500 hover:text-primary transition-colors">Политика конфиденциальности</Link>
+                <Link href="/terms" className="text-slate-500 hover:text-primary transition-colors">Оферта</Link>
               </div>
             </div>
             <div className="md:text-right flex flex-col justify-end space-y-4">
