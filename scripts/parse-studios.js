@@ -32,12 +32,23 @@ async function getPage(url, timeout = 15000) {
   const page = await ctx.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout });
-    await page.waitForTimeout(2000); // let JS render
+    await page.waitForTimeout(2000);
+    // Scroll to trigger lazy-loading
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
     const text = await page.evaluate(() => document.body?.innerText?.slice(0, 8000) || "");
     const images = await page.evaluate(() => {
-      return [...document.querySelectorAll("img")]
-        .map(img => ({ src: img.src || img.dataset?.src || img.dataset?.lazySrc || "", w: img.naturalWidth || img.width || 0, h: img.naturalHeight || img.height || 0 }))
-        .filter(i => i.src.startsWith("http") && !i.src.includes("logo") && !i.src.includes("icon") && !i.src.includes(".svg") && !i.src.includes("favicon") && !i.src.includes("pixel") && !i.src.includes("spacer"))
+      return [...document.querySelectorAll("img, [style*='background-image']")]
+        .map(el => {
+          if (el.tagName === "IMG") {
+            return { src: el.src || el.dataset?.src || el.dataset?.lazySrc || el.dataset?.original || el.getAttribute("data-src") || "", w: el.naturalWidth || el.width || 0, h: el.naturalHeight || el.height || 0 };
+          }
+          const bg = el.style.backgroundImage?.match(/url\(["']?([^"')]+)["']?\)/)?.[1] || "";
+          return { src: bg, w: 100, h: 100 };
+        })
+        .filter(i => i.src && i.src.startsWith("http") && !i.src.includes("logo") && !i.src.includes("icon") && !i.src.includes(".svg") && !i.src.includes("favicon") && !i.src.includes("pixel") && !i.src.includes("spacer") && !i.src.includes("1x1"))
         .sort((a, b) => (b.w * b.h) - (a.w * a.h))
         .map(i => i.src)
         .filter((s, i, a) => a.indexOf(s) === i);
