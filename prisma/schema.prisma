@@ -286,3 +286,20 @@ model Complaint {
   @@index([status])
   @@index([targetId])
 }
+
+model Subscription {
+  id            String   @id @default(cuid())
+  userId        String
+  plan          String   @default("pro")
+  status        String   @default("pending")
+  paymentId     String?
+  amount        Int
+  startDate     DateTime?
+  endDate       DateTime?
+  yookassaId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}

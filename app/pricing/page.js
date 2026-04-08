@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PayButton from "../components/PayButton";
 
 export const metadata = {
   title: "Тарифы — ПроектЛист",
@@ -102,9 +103,7 @@ export default function PricingPage() {
             </ul>
           </div>
           <div className="relative z-10 flex flex-col md:flex-row gap-4">
-            <button className="hero-gradient text-on-primary px-10 py-5 rounded-md font-bold text-lg flex-grow hover:shadow-xl hover:translate-y-[-2px] transition-all">
-              Подключить Профи
-            </button>
+            <PayButton />
             <div className="hidden md:flex items-center justify-center p-5 rounded-md bg-secondary-container/30">
               <span className="material-symbols-outlined text-primary">security</span>
             </div>

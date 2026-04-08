@@ -10,6 +10,7 @@
     "parse": "node --experimental-modules scripts/parse-studios.js"
   },
   "dependencies": {
+    "@a2seven/yoo-checkout": "^1.1.4",
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.19.2",
     "dotenv": "^17.3.1",
