@@ -178,12 +178,12 @@ export default async function DesignersPage({ searchParams }) {
               <article key={studio.id} className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-lg transition-all group">
                 <div className="flex">
                   {/* Image */}
-                  <div className="w-40 h-full flex-shrink-0 bg-slate-100 relative overflow-hidden">
+                  <div className="w-40 flex-shrink-0 bg-slate-100 relative overflow-hidden self-stretch">
                     {studio.imageUrl ? (
                       <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        alt={studio.name} src={studio.imageUrl} />
+                        alt={studio.name} src={studio.imageUrl} loading="lazy" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center min-h-[200px]">
+                      <div className="w-full h-full flex items-center justify-center min-h-[180px]">
                         <span className="material-symbols-outlined text-4xl text-slate-300">apartment</span>
                       </div>
                     )}
@@ -200,10 +200,10 @@ export default async function DesignersPage({ searchParams }) {
                     {/* Badges */}
                     <div className="flex gap-1.5 flex-wrap mb-3">
                       {studio.verified && (
-                        <span className="bg-primary text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Verified</span>
+                        <span className="bg-primary text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Проверен</span>
                       )}
                       {studio.active && (
-                        <span className="bg-slate-700 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Active</span>
+                        <span className="bg-slate-700 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Активен</span>
                       )}
                     </div>
 
@@ -211,23 +211,23 @@ export default async function DesignersPage({ searchParams }) {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 text-[11px]">
                       {studio.objectTypes.length > 0 && (
                         <div>
-                          <p className="uppercase font-bold text-slate-400 tracking-wider">Object type</p>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Тип объекта</p>
                           <p className="font-semibold text-on-surface text-xs">{studio.objectTypes.slice(0, 2).join(", ")}</p>
                         </div>
                       )}
                       {studio.segment && (
                         <div>
-                          <p className="uppercase font-bold text-slate-400 tracking-wider">Segment</p>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Сегмент</p>
                           <p className="font-semibold text-on-surface text-xs">{segmentLabel(studio.segment)}</p>
                         </div>
                       )}
                       <div>
-                        <p className="uppercase font-bold text-slate-400 tracking-wider">Projects</p>
-                        <p className="font-semibold text-on-surface text-xs">{studio.projectCount} cases</p>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Проекты</p>
+                        <p className="font-semibold text-on-surface text-xs">{studio.projectCount}</p>
                       </div>
                       {studio.city && (
                         <div>
-                          <p className="uppercase font-bold text-slate-400 tracking-wider">Location</p>
+                          <p className="uppercase font-bold text-slate-400 tracking-wider">Город</p>
                           <p className="font-semibold text-on-surface text-xs">{studio.city}</p>
                         </div>
                       )}
@@ -237,11 +237,11 @@ export default async function DesignersPage({ searchParams }) {
                     <div className="mt-auto flex gap-2">
                       <Link href={`/studio/${studio.slug}`}
                         className="hero-gradient text-white text-xs font-bold px-4 py-2 rounded transition-all hover:opacity-90">
-                        Open contacts/Invite
+                        Контакты/Пригласить
                       </Link>
                       <Link href={`/studio/${studio.slug}`}
                         className="border border-slate-200 text-on-surface text-xs font-medium px-4 py-2 rounded hover:bg-slate-50 transition-colors">
-                        Open Profile
+                        Профиль
                       </Link>
                     </div>
                   </div>
