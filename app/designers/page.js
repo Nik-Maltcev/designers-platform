@@ -8,7 +8,8 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-const PER_PAGE = 12;
+const DEFAULT_PER_PAGE = 10;
+const PER_PAGE_OPTIONS = [10, 50, 100];
 
 const OBJECT_TYPES = ["Квартиры", "Дома", "Офисы", "HoReCa", "Клиники"];
 const CITIES = ["Москва", "МО", "СПб", "Вся Россия"];
@@ -23,6 +24,7 @@ function segmentLabel(s) {
 
 export default async function DesignersPage({ searchParams }) {
   const params = await searchParams;
+  const perPage = PER_PAGE_OPTIONS.includes(parseInt(params?.perPage)) ? parseInt(params.perPage) : DEFAULT_PER_PAGE;
   const page = Math.max(1, parseInt(params?.page) || 1);
   const search = params?.q || "";
   const segment = params?.segment || "";
@@ -30,7 +32,7 @@ export default async function DesignersPage({ searchParams }) {
   const objectType = params?.objectType || "";
   const sort = params?.sort || "projects";
   const verifiedOnly = params?.verified === "1";
-  const skip = (page - 1) * PER_PAGE;
+  const skip = (page - 1) * perPage;
 
   const where = {
     ...(search && {
@@ -48,14 +50,14 @@ export default async function DesignersPage({ searchParams }) {
   const orderBy = sort === "name" ? { name: "asc" } : sort === "newest" ? { createdAt: "desc" } : { projectCount: "desc" };
 
   const [studios, total] = await Promise.all([
-    prisma.studio.findMany({ where, orderBy, skip, take: PER_PAGE, include: { projects: { take: 2 } } }),
+    prisma.studio.findMany({ where, orderBy, skip, take: perPage, include: { projects: { take: 2 } } }),
     prisma.studio.count({ where }),
   ]);
 
-  const totalPages = Math.ceil(total / PER_PAGE);
+  const totalPages = Math.ceil(total / perPage);
 
   function buildUrl(overrides) {
-    const p = { page: "1", q: search, segment, city, objectType, sort, verified: verifiedOnly ? "1" : "", ...overrides };
+    const p = { page: "1", q: search, segment, city, objectType, sort, verified: verifiedOnly ? "1" : "", perPage: String(perPage), ...overrides };
     const qs = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
     return `/designers?${qs}`;
   }
@@ -170,8 +172,8 @@ export default async function DesignersPage({ searchParams }) {
             ))}
           </div>
 
-          {/* Studio Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Studio Cards — single column */}
+          <div className="grid grid-cols-1 gap-4">
             {studios.map((studio) => (
               <article key={studio.id} className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-lg transition-all group">
                 <div className="flex">
@@ -257,29 +259,40 @@ export default async function DesignersPage({ searchParams }) {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-12 flex items-center justify-between pt-8 border-t border-slate-100">
-              <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
-                Showing {skip + 1}-{Math.min(skip + PER_PAGE, total)} of {total} professionals
-              </span>
-              <div className="flex items-center gap-1">
+            <div className="mt-12 pt-8 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
+                  {skip + 1}-{Math.min(skip + perPage, total)} из {total}
+                </span>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-xs text-slate-400">Показывать:</span>
+                  {PER_PAGE_OPTIONS.map((opt) => (
+                    <Link key={opt} href={buildUrl({ perPage: String(opt), page: "1" })}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-all ${perPage === opt ? "bg-primary text-white" : "bg-slate-100 text-on-surface-variant hover:bg-slate-200"}`}>
+                      {opt}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-1">
                 {page > 1 && (
                   <Link href={buildUrl({ page: String(page - 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100">
                     <span className="material-symbols-outlined text-lg">arrow_back</span>
                   </Link>
                 )}
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let p;
+                  if (totalPages <= 7) { p = i + 1; }
+                  else if (page <= 4) { p = i + 1; }
+                  else if (page >= totalPages - 3) { p = totalPages - 6 + i; }
+                  else { p = page - 3 + i; }
+                  return p;
+                }).map((p) => (
                   <Link key={p} href={buildUrl({ page: String(p) })}
                     className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium ${p === page ? "bg-primary text-white" : "hover:bg-slate-100"}`}>
-                    {String(p).padStart(2, "0")}
+                    {p}
                   </Link>
                 ))}
-                {totalPages > 5 && <span className="px-1 text-slate-400">...</span>}
-                {totalPages > 5 && (
-                  <Link href={buildUrl({ page: String(totalPages) })}
-                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium hover:bg-slate-100`}>
-                    {totalPages}
-                  </Link>
-                )}
                 {page < totalPages && (
                   <Link href={buildUrl({ page: String(page + 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100">
                     <span className="material-symbols-outlined text-lg">arrow_forward</span>
