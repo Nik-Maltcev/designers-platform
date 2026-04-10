@@ -4,7 +4,7 @@
  * Стратегия:
  * 1. Brave Search — ищем "{название студии} отзывы" → получаем URL и сниппеты
  * 2. Fetch страниц с отзывами (Яндекс Карты, 2ГИС, Houzz и т.д.)
- * 3. Gemini суммаризирует: тон, плюсы, минусы, средняя оценка
+ * 3. DeepSeek суммаризирует: тон, плюсы, минусы, средняя оценка
  * 4. Сохраняем в ReviewSummary
  */
 
@@ -12,7 +12,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 
 if (!BRAVE_KEY) {
   console.error("❌ BRAVE_SEARCH_API_KEY не задан в .env");
@@ -82,8 +82,8 @@ async function fetchPageText(url) {
   }
 }
 
-// --- Gemini summarization ---
-async function summarizeWithGemini(studioName, searchResults, pageTexts) {
+// --- DeepSeek summarization ---
+async function summarizeWithDeepSeek(studioName, searchResults, pageTexts) {
   const context = searchResults
     .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
     .join("\n\n");
@@ -113,29 +113,34 @@ ${pages || "Не удалось загрузить страницы"}
 }`;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 2000 },
-        }),
-      }
-    );
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${DEEPSEEK_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "Ты анализируешь отзывы о дизайн-студиях. Всегда отвечай только валидным JSON без markdown обёрток." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 2000,
+      }),
+    });
     if (!res.ok) {
-      console.log(`  ⚠ Gemini ${res.status}`);
+      console.log(`  ⚠ DeepSeek ${res.status}`);
       return null;
     }
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const text = data.choices?.[0]?.message?.content || "";
+    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]);
   } catch (err) {
-    console.log(`  ✗ Gemini error: ${err.message}`);
+    console.log(`  ✗ DeepSeek error: ${err.message}`);
     return null;
   }
 }
@@ -169,8 +174,8 @@ async function processStudio(studio) {
   console.log(`  Загружено ${pageTexts.length} страниц`);
 
   // Step 3: Summarize with Gemini
-  console.log("  Суммаризация через Gemini...");
-  const analysis = await summarizeWithGemini(studio.name, results, pageTexts);
+  console.log("  Суммаризация через DeepSeek...");
+  const analysis = await summarizeWithDeepSeek(studio.name, results, pageTexts);
 
   if (!analysis) {
     console.log("  ✗ Не удалось получить анализ");
