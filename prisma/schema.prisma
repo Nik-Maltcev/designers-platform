@@ -315,7 +315,8 @@ model ReviewSummary {
   negatives       String[]
   summary         String?
   tone            String?   // "positive" | "mixed" | "negative"
-  sources         Json?     // [{platform, url, rating, reviewCount}]
+  sources         Json?     // [{platform, url, rating, reviewCount, icon}]
+  reviews         Json?     // [{author, text, rating, date, platform}]
   rawSearchResults Json?
   fetchedAt       DateTime @default(now())
 }

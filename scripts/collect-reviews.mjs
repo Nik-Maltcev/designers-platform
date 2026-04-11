@@ -1,5 +1,5 @@
 /**
- * Сбор отзывов: Brave Search → DeepSeek анализирует и распределяет.
+ * Сбор отзывов: Brave Search → fetch страниц → DeepSeek извлекает отзывы.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -40,45 +40,50 @@ async function fetchPageText(url) {
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
       .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ").trim().slice(0, 8000);
+      .replace(/\s+/g, " ").trim().slice(0, 12000);
   } catch { return null; }
 }
 
-async function analyzeWithDeepSeek(studioName, searchResults, pageTexts) {
+async function analyzeWithDeepSeek(studioName, searchResults, pages) {
   const context = searchResults
     .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
     .join("\n\n");
 
-  const pages = pageTexts.filter(Boolean).map((t, i) => `--- Страница ${i + 1} ---\n${t}`).join("\n\n");
+  const pagesText = pages
+    .filter((p) => p.text)
+    .map((p, i) => `--- ${p.url} ---\n${p.text}`)
+    .join("\n\n");
 
-  const prompt = `Ты анализируешь результаты поиска отзывов о дизайн-студии "${studioName}".
+  const prompt = `Проанализируй результаты поиска и страницы с отзывами о дизайн-студии "${studioName}".
 
 РЕЗУЛЬТАТЫ ПОИСКА:
 ${context}
 
 СОДЕРЖИМОЕ СТРАНИЦ:
-${pages || "Нет загруженных страниц"}
+${pagesText || "Нет"}
 
-Задача:
-1. Определи какие из результатов — это площадки с отзывами (Яндекс Карты, 2ГИС, Houzz, Zoon, Отзовик, Flamp, Google Maps, InMyRoom, Roomble, Профи.ру и любые другие)
-2. Извлеки рейтинг и количество отзывов если есть в сниппете или тексте страницы
-3. Составь саммари отзывов
+Задачи:
+1. Определи площадки с отзывами (Яндекс Карты, 2ГИС, Houzz, Zoon, Отзовик, Flamp, Google Maps и др.)
+2. Извлеки КАЖДЫЙ отдельный отзыв — автор, текст, рейтинг, дата, площадка
+3. Составь саммари
 
 Верни JSON (без markdown):
 {
   "sources": [
-    {"platform": "название площадки", "url": "ссылка на страницу с отзывами", "rating": число или null, "reviewCount": число или null}
+    {"platform": "название", "url": "ссылка", "rating": число или null, "reviewCount": число или null}
+  ],
+  "reviews": [
+    {"author": "имя или null", "text": "полный текст отзыва", "rating": число или null, "date": "дата или null", "platform": "площадка"}
   ],
   "avgRating": средний рейтинг или null,
-  "totalReviews": общее количество отзывов или 0,
-  "positives": ["плюс 1", "плюс 2"] — до 5,
-  "negatives": ["минус 1", "минус 2"] — до 5,
-  "summary": "Резюме в 2-3 предложениях на русском",
-  "tone": "positive" или "mixed" или "negative"
+  "totalReviews": общее количество или 0,
+  "positives": ["плюс"] — до 5,
+  "negatives": ["минус"] — до 5,
+  "summary": "Резюме 2-3 предложения",
+  "tone": "positive" / "mixed" / "negative"
 }
 
-Если результат не является площадкой с отзывами — не включай его в sources.
-Если отзывов нет совсем — sources пустой массив, summary = null.`;
+ВАЖНО: извлеки ВСЕ отзывы которые найдёшь в текстах страниц. Каждый отзыв отдельным объектом в массиве reviews.`;
 
   try {
     const res = await fetch("https://api.deepseek.com/chat/completions", {
@@ -90,7 +95,7 @@ ${pages || "Нет загруженных страниц"}
           { role: "system", content: "Отвечай только валидным JSON без markdown." },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2, max_tokens: 2000,
+        temperature: 0.2, max_tokens: 4000,
       }),
     });
     if (!res.ok) { console.log(`  ⚠ DeepSeek ${res.status}`); return null; }
@@ -103,77 +108,69 @@ ${pages || "Нет загруженных страниц"}
   } catch (err) { console.log(`  ✗ DeepSeek: ${err.message}`); return null; }
 }
 
+const iconMap = {
+  "яндекс": "🗺️", "2гис": "📍", "houzz": "🏠", "inmyroom": "🛋️", "roomble": "🪑",
+  "zoon": "⭐", "отзовик": "💬", "irecommend": "👍", "flamp": "🔥", "google": "📌",
+  "профи": "👷", "profi": "👷",
+};
+
 async function processStudio(studio) {
   console.log(`\n→ ${studio.name}`);
 
-  const results1 = await braveSearch(`"${studio.name}" отзывы`);
+  const r1 = await braveSearch(`"${studio.name}" отзывы`);
   await new Promise((r) => setTimeout(r, 1000));
-  const results2 = await braveSearch(`"${studio.name}" отзывы дизайн интерьера`);
+  const r2 = await braveSearch(`"${studio.name}" отзывы дизайн интерьера`);
   await new Promise((r) => setTimeout(r, 1000));
 
   const seen = new Set();
-  const unique = [...results1, ...results2].filter((r) => {
-    if (seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  });
-
+  const unique = [...r1, ...r2].filter((r) => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
   console.log(`  Найдено ${unique.length} результатов`);
   if (unique.length === 0) { console.log("  ✗ Нет результатов"); return; }
 
-  // Fetch top pages for context
-  const toFetch = unique.slice(0, 5);
+  // Fetch more pages for review extraction
+  const toFetch = unique.slice(0, 8);
   console.log(`  Загрузка ${toFetch.length} страниц...`);
-  const pageTexts = [];
+  const pages = [];
   for (const r of toFetch) {
     const text = await fetchPageText(r.url);
-    if (text) pageTexts.push(text);
+    pages.push({ url: r.url, text });
     await new Promise((r) => setTimeout(r, 500));
   }
-  console.log(`  Загружено ${pageTexts.length} страниц`);
+  const loaded = pages.filter((p) => p.text).length;
+  console.log(`  Загружено ${loaded} страниц`);
 
   console.log("  Анализ через DeepSeek...");
-  const analysis = await analyzeWithDeepSeek(studio.name, unique, pageTexts);
+  const analysis = await analyzeWithDeepSeek(studio.name, unique, pages);
   if (!analysis) { console.log("  ✗ DeepSeek не вернул результат"); return; }
 
-  // Add icons to sources
-  const iconMap = {
-    "яндекс": "🗺️", "2гис": "📍", "houzz": "🏠", "inmyroom": "🛋️", "roomble": "🪑",
-    "zoon": "⭐", "отзовик": "💬", "irecommend": "👍", "flamp": "🔥", "google": "📌",
-    "профи": "👷", "ремонтник": "🔧", "profi": "👷",
-  };
   const sources = (analysis.sources || []).map((s) => {
     const key = Object.keys(iconMap).find((k) => s.platform.toLowerCase().includes(k));
     return { ...s, icon: key ? iconMap[key] : "⭐" };
   });
 
+  const reviews = analysis.reviews || [];
+
   try {
     await prisma.reviewSummary.upsert({
       where: { studioId: studio.id },
       create: {
-        studioId: studio.id,
-        avgRating: analysis.avgRating || null,
-        totalReviews: analysis.totalReviews || 0,
-        positives: analysis.positives || [],
-        negatives: analysis.negatives || [],
-        summary: analysis.summary || null,
-        tone: analysis.tone || null,
-        sources, rawSearchResults: unique,
+        studioId: studio.id, avgRating: analysis.avgRating || null,
+        totalReviews: analysis.totalReviews || 0, positives: analysis.positives || [],
+        negatives: analysis.negatives || [], summary: analysis.summary || null,
+        tone: analysis.tone || null, sources, reviews, rawSearchResults: unique,
       },
       update: {
-        avgRating: analysis.avgRating || null,
-        totalReviews: analysis.totalReviews || 0,
-        positives: analysis.positives || [],
-        negatives: analysis.negatives || [],
-        summary: analysis.summary || null,
-        tone: analysis.tone || null,
-        sources, rawSearchResults: unique, fetchedAt: new Date(),
+        avgRating: analysis.avgRating || null, totalReviews: analysis.totalReviews || 0,
+        positives: analysis.positives || [], negatives: analysis.negatives || [],
+        summary: analysis.summary || null, tone: analysis.tone || null,
+        sources, reviews, rawSearchResults: unique, fetchedAt: new Date(),
       },
     });
 
-    const rating = analysis.avgRating ? `${analysis.avgRating}/5` : "—";
-    console.log(`  ✓ ${analysis.tone || "?"} | рейтинг: ${rating} | отзывов: ${analysis.totalReviews || 0} | площадок: ${sources.length}`);
-    sources.forEach((s) => console.log(`    ${s.icon} ${s.platform}: ${s.rating || "—"} (${s.reviewCount || "?"}) → ${s.url}`));
+    const rating = analysis.avgRating ? `${analysis.avgRating.toFixed(1)}/5` : "—";
+    console.log(`  ✓ ${analysis.tone} | рейтинг: ${rating} | отзывов: ${reviews.length} текстов | площадок: ${sources.length}`);
+    sources.forEach((s) => console.log(`    ${s.icon} ${s.platform}: ${s.rating || "—"} → ${s.url}`));
+    reviews.slice(0, 3).forEach((r) => console.log(`    💬 ${r.author || "Аноним"}: "${(r.text || "").slice(0, 80)}..."`));
     if (analysis.summary) console.log(`  📝 ${analysis.summary}`);
   } catch (err) { console.log(`  ✗ DB: ${err.message}`); }
 }

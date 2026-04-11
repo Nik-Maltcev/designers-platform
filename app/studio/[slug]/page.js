@@ -292,6 +292,41 @@ export default async function StudioPage({ params }) {
             </>
           )}
 
+          {Array.isArray(studio.reviewSummary.reviews) && studio.reviewSummary.reviews.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-4">Тексты отзывов</h4>
+              <div className="space-y-3">
+                {studio.reviewSummary.reviews.map((review, i) => (
+                  <div key={i} className="p-4 bg-surface rounded-lg border border-outline-variant/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                        <span className="text-sm font-semibold text-on-surface">{review.author || "Аноним"}</span>
+                        {review.platform && (
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{review.platform}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {review.rating && (
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star} className="material-symbols-outlined text-xs"
+                                style={{ fontVariationSettings: "'FILL' 1", color: star <= review.rating ? "#f59e0b" : "#d1d5db" }}>
+                                star
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {review.date && <span className="text-[10px] text-outline">{review.date}</span>}
+                      </div>
+                    </div>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">{review.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="text-[10px] text-outline mt-4">Данные собраны {new Date(studio.reviewSummary.fetchedAt).toLocaleDateString("ru-RU")} из открытых источников</p>
         </div>
       )}
