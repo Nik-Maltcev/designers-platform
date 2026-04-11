@@ -1,14 +1,16 @@
 /**
- * Сбор ссылок на отзывы о студиях с площадок.
+ * Сбор отзывов о студиях: ссылки на площадки + AI-саммари.
  *
  * 1. Brave Search — ищем студию на площадках с отзывами
- * 2. Сохраняем ссылки, рейтинги, количество отзывов в ReviewSummary
+ * 2. DeepSeek суммаризирует: тон, плюсы, минусы
+ * 3. Сохраняем всё в ReviewSummary
  */
 
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 
 if (!BRAVE_KEY) {
   console.error("❌ BRAVE_SEARCH_API_KEY не задан в .env");
@@ -82,6 +84,86 @@ function matchPlatform(url, domain) {
   return null;
 }
 
+// --- Fetch page text ---
+async function fetchPageText(url) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const html = await res.text();
+    return html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 8000);
+  } catch {
+    return null;
+  }
+}
+
+// --- DeepSeek summarization ---
+async function summarizeWithDeepSeek(studioName, searchResults, pageTexts) {
+  if (!DEEPSEEK_KEY) return null;
+
+  const context = searchResults
+    .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
+    .join("\n\n");
+
+  const pages = pageTexts
+    .filter(Boolean)
+    .map((t, i) => `--- Страница ${i + 1} ---\n${t}`)
+    .join("\n\n");
+
+  const prompt = `Проанализируй отзывы о компании "${studioName}".
+
+ПОИСКОВАЯ ВЫДАЧА:
+${context}
+
+СОДЕРЖИМОЕ СТРАНИЦ:
+${pages || "Нет"}
+
+Верни JSON (без markdown):
+{
+  "positives": ["плюс 1", "плюс 2"] — до 5 плюсов,
+  "negatives": ["минус 1", "минус 2"] — до 5 минусов,
+  "summary": "Резюме в 2-3 предложениях на русском",
+  "tone": "positive" или "mixed" или "negative"
+}`;
+
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${DEEPSEEK_KEY}` },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "Отвечай только валидным JSON без markdown." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 1500,
+      }),
+    });
+    if (!res.ok) { console.log(`  ⚠ DeepSeek ${res.status}`); return null; }
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.log(`  ✗ DeepSeek: ${err.message}`);
+    return null;
+  }
+}
+
 // --- Process studio ---
 async function processStudio(studio) {
   console.log(`\n→ ${studio.name}`);
@@ -127,7 +209,24 @@ async function processStudio(studio) {
 
   console.log(`  Площадок с отзывами: ${sources.length}`);
 
-  if (sources.length === 0) {
+  // Fetch review pages for AI summary
+  const reviewUrls = sources.slice(0, 3);
+  console.log(`  Загрузка ${reviewUrls.length} страниц...`);
+  const pageTexts = [];
+  for (const s of reviewUrls) {
+    const text = await fetchPageText(s.url);
+    if (text) pageTexts.push(text);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  // DeepSeek summarization
+  let analysis = null;
+  if (unique.length > 0) {
+    console.log("  Суммаризация через DeepSeek...");
+    analysis = await summarizeWithDeepSeek(studio.name, unique, pageTexts);
+  }
+
+  if (sources.length === 0 && !analysis) {
     console.log("  ✗ Не найдено площадок с отзывами");
     return;
   }
@@ -144,16 +243,20 @@ async function processStudio(studio) {
         studioId: studio.id,
         avgRating,
         totalReviews,
-        positives: [],
-        negatives: [],
-        summary: null,
-        tone: null,
+        positives: analysis?.positives || [],
+        negatives: analysis?.negatives || [],
+        summary: analysis?.summary || null,
+        tone: analysis?.tone || null,
         sources,
         rawSearchResults: unique,
       },
       update: {
         avgRating,
         totalReviews,
+        positives: analysis?.positives || [],
+        negatives: analysis?.negatives || [],
+        summary: analysis?.summary || null,
+        tone: analysis?.tone || null,
         sources,
         rawSearchResults: unique,
         fetchedAt: new Date(),

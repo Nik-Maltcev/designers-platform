@@ -224,11 +224,51 @@ export default async function StudioPage({ params }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {studio.reviewSummary.summary && (
+            <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">{studio.reviewSummary.summary}</p>
+          )}
+
+          {(studio.reviewSummary.positives.length > 0 || studio.reviewSummary.negatives.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {studio.reviewSummary.positives.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase font-bold text-teal-600 tracking-wider mb-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_up</span>
+                    Плюсы
+                  </p>
+                  <ul className="space-y-1.5">
+                    {studio.reviewSummary.positives.map((p, i) => (
+                      <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                        <span className="text-teal-500 mt-0.5">+</span> {p}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {studio.reviewSummary.negatives.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase font-bold text-amber-600 tracking-wider mb-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_down</span>
+                    Минусы
+                  </p>
+                  <ul className="space-y-1.5">
+                    {studio.reviewSummary.negatives.map((n, i) => (
+                      <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                        <span className="text-amber-500 mt-0.5">−</span> {n}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-3">Площадки с отзывами</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {studio.reviewSummary.sources.map((source, i) => (
               <a key={i} href={source.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 bg-surface rounded-xl border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
-                <span className="text-2xl">{source.icon || "⭐"}</span>
+                className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
+                <span className="text-xl">{source.icon || "⭐"}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{source.platform}</p>
                   <div className="flex items-center gap-2 mt-0.5">
