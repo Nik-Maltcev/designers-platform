@@ -199,7 +199,7 @@ export default async function StudioPage({ params }) {
         </div>
       )}
 
-      {studio.reviewSummary && (
+      {studio.reviewSummary && Array.isArray(studio.reviewSummary.sources) && studio.reviewSummary.sources.length > 0 && (
         <div className="bg-surface-container-lowest p-8 rounded-xl mb-16 border border-outline-variant/15">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold font-headline flex items-center gap-2">
@@ -224,44 +224,31 @@ export default async function StudioPage({ params }) {
             )}
           </div>
 
-          {studio.reviewSummary.summary && (
-            <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">{studio.reviewSummary.summary}</p>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {studio.reviewSummary.positives.length > 0 && (
-              <div>
-                <p className="text-xs uppercase font-bold text-teal-600 tracking-wider mb-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_up</span>
-                  Плюсы
-                </p>
-                <ul className="space-y-1.5">
-                  {studio.reviewSummary.positives.map((p, i) => (
-                    <li key={i} className="text-sm text-on-surface flex items-start gap-2">
-                      <span className="text-teal-500 mt-0.5">+</span> {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {studio.reviewSummary.negatives.length > 0 && (
-              <div>
-                <p className="text-xs uppercase font-bold text-amber-600 tracking-wider mb-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_down</span>
-                  Минусы
-                </p>
-                <ul className="space-y-1.5">
-                  {studio.reviewSummary.negatives.map((n, i) => (
-                    <li key={i} className="text-sm text-on-surface flex items-start gap-2">
-                      <span className="text-amber-500 mt-0.5">−</span> {n}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {studio.reviewSummary.sources.map((source, i) => (
+              <a key={i} href={source.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-4 p-4 bg-surface rounded-xl border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
+                <span className="text-2xl">{source.icon || "⭐"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{source.platform}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {source.rating && (
+                      <span className="text-xs font-bold text-amber-600 flex items-center gap-0.5">
+                        <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        {source.rating}
+                      </span>
+                    )}
+                    {source.reviewCount && (
+                      <span className="text-xs text-outline">{source.reviewCount} отзывов</span>
+                    )}
+                  </div>
+                </div>
+                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm transition-colors">open_in_new</span>
+              </a>
+            ))}
           </div>
 
-          <p className="text-[10px] text-outline">Данные собраны {new Date(studio.reviewSummary.fetchedAt).toLocaleDateString("ru-RU")} из открытых источников</p>
+          <p className="text-[10px] text-outline mt-4">Данные собраны {new Date(studio.reviewSummary.fetchedAt).toLocaleDateString("ru-RU")} из открытых источников</p>
         </div>
       )}
 

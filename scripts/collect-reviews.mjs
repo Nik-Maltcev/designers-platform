@@ -1,28 +1,39 @@
 /**
- * Сбор и суммаризация отзывов о студиях.
+ * Сбор ссылок на отзывы о студиях с площадок.
  *
- * Стратегия:
- * 1. Brave Search — ищем "{название студии} отзывы" → получаем URL и сниппеты
- * 2. Fetch страниц с отзывами (Яндекс Карты, 2ГИС, Houzz и т.д.)
- * 3. DeepSeek суммаризирует: тон, плюсы, минусы, средняя оценка
- * 4. Сохраняем в ReviewSummary
+ * 1. Brave Search — ищем студию на площадках с отзывами
+ * 2. Сохраняем ссылки, рейтинги, количество отзывов в ReviewSummary
  */
 
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 
 if (!BRAVE_KEY) {
   console.error("❌ BRAVE_SEARCH_API_KEY не задан в .env");
-  console.log("Получите ключ на https://brave.com/search/api/ (бесплатно до 2000 запросов/мес)");
   process.exit(1);
 }
 
+const PLATFORMS = [
+  { domain: "yandex.ru/maps", name: "Яндекс Карты", icon: "🗺️" },
+  { domain: "2gis.ru", name: "2ГИС", icon: "📍" },
+  { domain: "houzz.ru", name: "Houzz", icon: "🏠" },
+  { domain: "inmyroom.ru", name: "InMyRoom", icon: "🛋️" },
+  { domain: "roomble.com", name: "Roomble", icon: "🪑" },
+  { domain: "zoon.ru", name: "Zoon", icon: "⭐" },
+  { domain: "otzovik.com", name: "Отзовик", icon: "💬" },
+  { domain: "irecommend.ru", name: "iRecommend", icon: "👍" },
+  { domain: "flamp.ru", name: "Flamp", icon: "🔥" },
+  { domain: "google.com/maps", name: "Google Maps", icon: "📌" },
+  { domain: "profi.ru", name: "Профи.ру", icon: "👷" },
+  { domain: "remontnik.ru", name: "Ремонтник", icon: "🔧" },
+  { domain: "mastercity.ru", name: "MasterCity", icon: "🏗️" },
+];
+
 // --- Brave Search ---
 async function braveSearch(query) {
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=10&search_lang=ru`;
+  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=20&search_lang=ru`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -39,7 +50,7 @@ async function braveSearch(query) {
     return (data.web?.results || []).map((r) => ({
       title: r.title,
       url: r.url,
-      snippet: r.description,
+      snippet: r.description || "",
       domain: new URL(r.url).hostname,
     }));
   } catch (err) {
@@ -48,171 +59,110 @@ async function braveSearch(query) {
   }
 }
 
-// --- Fetch page content ---
-const REVIEW_DOMAINS = [
-  "yandex.ru", "2gis.ru", "houzz.ru", "inmyroom.ru", "roomble.com",
-  "zoon.ru", "otzovik.com", "irecommend.ru", "flamp.ru", "google.com",
-];
-
-function isReviewPage(domain) {
-  return REVIEW_DOMAINS.some((d) => domain.includes(d));
+// --- Extract rating from snippet ---
+function extractRating(snippet) {
+  // "Рейтинг 4.8 из 5" or "4.8★" or "оценка: 4.5"
+  const m = snippet.match(/(?:рейтинг|оценка|rating)[:\s]*(\d[.,]\d)/i)
+    || snippet.match(/(\d[.,]\d)\s*(?:из\s*5|★|⭐|\/5)/i)
+    || snippet.match(/(\d[.,]\d)\s*\(/);
+  return m ? parseFloat(m[1].replace(",", ".")) : null;
 }
 
-async function fetchPageText(url) {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 10000);
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-    });
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const html = await res.text();
-    // Strip HTML tags, collapse whitespace
-    return html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 8000); // Limit for LLM context
-  } catch {
-    return null;
-  }
+function extractReviewCount(snippet) {
+  const m = snippet.match(/(\d+)\s*(?:отзыв|review|оценк)/i);
+  return m ? parseInt(m[1]) : null;
 }
 
-// --- DeepSeek summarization ---
-async function summarizeWithDeepSeek(studioName, searchResults, pageTexts) {
-  const context = searchResults
-    .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
-    .join("\n\n");
-
-  const pages = pageTexts
-    .filter(Boolean)
-    .map((t, i) => `--- Страница ${i + 1} ---\n${t}`)
-    .join("\n\n");
-
-  const prompt = `Ты — аналитик отзывов. Проанализируй информацию о компании "${studioName}" из поисковой выдачи и страниц с отзывами.
-
-ПОИСКОВАЯ ВЫДАЧА:
-${context}
-
-СОДЕРЖИМОЕ СТРАНИЦ С ОТЗЫВАМИ:
-${pages || "Не удалось загрузить страницы"}
-
-Верни JSON (без markdown, только чистый JSON):
-{
-  "avgRating": число от 1 до 5 или null если нет данных,
-  "totalReviews": примерное общее количество отзывов или 0,
-  "positives": ["плюс 1", "плюс 2", "плюс 3"] — максимум 5 ключевых плюсов,
-  "negatives": ["минус 1", "минус 2"] — максимум 5 ключевых минусов,
-  "summary": "Краткое резюме отзывов в 2-3 предложениях на русском",
-  "tone": "positive" или "mixed" или "negative",
-  "sources": [{"platform": "название площадки", "url": "ссылка", "rating": число или null, "reviewCount": число или null}]
-}`;
-
-  try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: "Ты анализируешь отзывы о дизайн-студиях. Всегда отвечай только валидным JSON без markdown обёрток." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-      }),
-    });
-    if (!res.ok) {
-      console.log(`  ⚠ DeepSeek ${res.status}`);
-      return null;
+function matchPlatform(url, domain) {
+  for (const p of PLATFORMS) {
+    if (url.includes(p.domain) || domain.includes(p.domain.split("/")[0])) {
+      return p;
     }
-    const data = await res.json();
-    const text = data.choices?.[0]?.message?.content || "";
-    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.log(`  ✗ DeepSeek error: ${err.message}`);
-    return null;
   }
+  return null;
 }
 
-// --- Main ---
+// --- Process studio ---
 async function processStudio(studio) {
   console.log(`\n→ ${studio.name}`);
 
-  // Step 1: Search for reviews
-  const query = `"${studio.name}" отзывы дизайн интерьера`;
-  const results = await braveSearch(query);
-  console.log(`  Найдено ${results.length} результатов`);
+  const queries = [
+    `"${studio.name}" отзывы`,
+    `"${studio.name}" отзывы дизайн интерьера`,
+  ];
 
-  if (results.length === 0) {
-    console.log("  ✗ Нет результатов поиска");
+  const allResults = [];
+  for (const q of queries) {
+    const results = await braveSearch(q);
+    allResults.push(...results);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  // Deduplicate by URL
+  const seen = new Set();
+  const unique = allResults.filter((r) => {
+    if (seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  });
+
+  console.log(`  Найдено ${unique.length} результатов`);
+
+  // Match to platforms
+  const sources = [];
+  for (const r of unique) {
+    const platform = matchPlatform(r.url, r.domain);
+    if (!platform) continue;
+    // Skip duplicates per platform
+    if (sources.some((s) => s.platform === platform.name)) continue;
+    sources.push({
+      platform: platform.name,
+      icon: platform.icon,
+      url: r.url,
+      rating: extractRating(r.snippet),
+      reviewCount: extractReviewCount(r.snippet),
+      snippet: r.snippet.slice(0, 200),
+    });
+  }
+
+  console.log(`  Площадок с отзывами: ${sources.length}`);
+
+  if (sources.length === 0) {
+    console.log("  ✗ Не найдено площадок с отзывами");
     return;
   }
 
-  // Step 2: Fetch review pages (max 3 to stay within limits)
-  const reviewUrls = results.filter((r) => isReviewPage(r.domain)).slice(0, 3);
-  const otherUrls = results.filter((r) => !isReviewPage(r.domain)).slice(0, 2);
-  const toFetch = [...reviewUrls, ...otherUrls].slice(0, 4);
+  // Calculate average rating from sources that have one
+  const ratings = sources.filter((s) => s.rating).map((s) => s.rating);
+  const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+  const totalReviews = sources.reduce((sum, s) => sum + (s.reviewCount || 0), 0);
 
-  console.log(`  Загрузка ${toFetch.length} страниц...`);
-  const pageTexts = [];
-  for (const r of toFetch) {
-    const text = await fetchPageText(r.url);
-    if (text) pageTexts.push(text);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  console.log(`  Загружено ${pageTexts.length} страниц`);
-
-  // Step 3: Summarize with Gemini
-  console.log("  Суммаризация через DeepSeek...");
-  const analysis = await summarizeWithDeepSeek(studio.name, results, pageTexts);
-
-  if (!analysis) {
-    console.log("  ✗ Не удалось получить анализ");
-    return;
-  }
-
-  // Step 4: Save to DB
   try {
     await prisma.reviewSummary.upsert({
       where: { studioId: studio.id },
       create: {
         studioId: studio.id,
-        avgRating: analysis.avgRating,
-        totalReviews: analysis.totalReviews || 0,
-        positives: analysis.positives || [],
-        negatives: analysis.negatives || [],
-        summary: analysis.summary,
-        tone: analysis.tone,
-        sources: analysis.sources || [],
-        rawSearchResults: results,
+        avgRating,
+        totalReviews,
+        positives: [],
+        negatives: [],
+        summary: null,
+        tone: null,
+        sources,
+        rawSearchResults: unique,
       },
       update: {
-        avgRating: analysis.avgRating,
-        totalReviews: analysis.totalReviews || 0,
-        positives: analysis.positives || [],
-        negatives: analysis.negatives || [],
-        summary: analysis.summary,
-        tone: analysis.tone,
-        sources: analysis.sources || [],
-        rawSearchResults: results,
+        avgRating,
+        totalReviews,
+        sources,
+        rawSearchResults: unique,
         fetchedAt: new Date(),
       },
     });
 
-    const rating = analysis.avgRating ? `${analysis.avgRating}/5` : "—";
-    console.log(`  ✓ ${analysis.tone} | рейтинг: ${rating} | отзывов: ${analysis.totalReviews} | источников: ${(analysis.sources || []).length}`);
-    if (analysis.summary) console.log(`  📝 ${analysis.summary}`);
+    const ratingStr = avgRating ? `${avgRating.toFixed(1)}/5` : "—";
+    console.log(`  ✓ рейтинг: ${ratingStr} | отзывов: ${totalReviews} | площадок: ${sources.length}`);
+    sources.forEach((s) => console.log(`    ${s.icon} ${s.platform}: ${s.rating || "—"} (${s.reviewCount || "?"} отзывов) → ${s.url}`));
   } catch (err) {
     console.log(`  ✗ DB: ${err.message}`);
   }
@@ -227,7 +177,6 @@ async function main() {
 
   for (const studio of studios) {
     await processStudio(studio);
-    // Rate limit: 1 req/sec for Brave free tier
     await new Promise((r) => setTimeout(r, 1500));
   }
 
