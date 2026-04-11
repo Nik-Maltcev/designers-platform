@@ -113,8 +113,10 @@ model Project {
   imageUrls   String[]
   year        String?
   objectType  String?
-  studioId    String
-  studio      Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  studioId    String?
+  studio      Studio?  @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 }
 
@@ -243,6 +245,7 @@ model Company {
   updatedAt     DateTime  @updatedAt
   proposals     Proposal[]
   complaints    Complaint[]
+  projects      Project[]
 
   @@index([type])
   @@index([city])
