@@ -199,7 +199,7 @@ export default async function StudioPage({ params }) {
         </div>
       )}
 
-      {studio.reviewSummary && Array.isArray(studio.reviewSummary.sources) && studio.reviewSummary.sources.length > 0 && (
+      {studio.reviewSummary && (studio.reviewSummary.summary || (Array.isArray(studio.reviewSummary.sources) && studio.reviewSummary.sources.length > 0)) && (
         <div className="bg-surface-container-lowest p-8 rounded-xl mb-16 border border-outline-variant/15">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold font-headline flex items-center gap-2">
@@ -263,30 +263,34 @@ export default async function StudioPage({ params }) {
             </div>
           )}
 
-          <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-3">Площадки с отзывами</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {studio.reviewSummary.sources.map((source, i) => (
-              <a key={i} href={source.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
-                <span className="text-xl">{source.icon || "⭐"}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{source.platform}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {source.rating && (
-                      <span className="text-xs font-bold text-amber-600 flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        {source.rating}
-                      </span>
-                    )}
-                    {source.reviewCount && (
-                      <span className="text-xs text-outline">{source.reviewCount} отзывов</span>
-                    )}
-                  </div>
-                </div>
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm transition-colors">open_in_new</span>
-              </a>
-            ))}
-          </div>
+          {Array.isArray(studio.reviewSummary.sources) && studio.reviewSummary.sources.length > 0 && (
+            <>
+              <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-3">Площадки с отзывами</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {studio.reviewSummary.sources.map((source, i) => (
+                  <a key={i} href={source.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
+                    <span className="text-xl">{source.icon || "⭐"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{source.platform}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {source.rating && (
+                          <span className="text-xs font-bold text-amber-600 flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                            {source.rating}
+                          </span>
+                        )}
+                        {source.reviewCount && (
+                          <span className="text-xs text-outline">{source.reviewCount} отзывов</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm transition-colors">open_in_new</span>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
 
           <p className="text-[10px] text-outline mt-4">Данные собраны {new Date(studio.reviewSummary.fetchedAt).toLocaleDateString("ru-RU")} из открытых источников</p>
         </div>

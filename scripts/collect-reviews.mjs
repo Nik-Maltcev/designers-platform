@@ -227,6 +227,13 @@ async function processStudio(studio) {
   }
 
   if (sources.length === 0 && !analysis) {
+    console.log("  ✗ Не найдено площадок и не удалось получить саммари");
+    return;
+  }
+
+  if (sources.length === 0 && analysis) {
+    // Сохраняем только саммари без площадок
+  }
     console.log("  ✗ Не найдено площадок с отзывами");
     return;
   }
