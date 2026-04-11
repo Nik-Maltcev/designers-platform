@@ -40,7 +40,7 @@ async function fetchPageText(url) {
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
       .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ").trim().slice(0, 12000);
+      .replace(/\s+/g, " ").trim().slice(0, 20000);
   } catch { return null; }
 }
 
@@ -83,8 +83,8 @@ ${pagesText || "Нет"}
   "tone": "positive" / "mixed" / "negative"
 }
 
-ВАЖНО: извлеки ВСЕ отзывы которые найдёшь в текстах страниц. Каждый отзыв отдельным объектом в массиве reviews.
-КРИТИЧЕСКИ ВАЖНО: текст отзывов (поле "text") копируй ДОСЛОВНО, слово в слово, без перефразирования, сокращения или изменения. Саммари (summary, positives, negatives) — своими словами.`;
+ВАЖНО: извлеки ВСЕ отзывы которые найдёшь в текстах страниц И в сниппетах поисковой выдачи. Каждый отзыв отдельным объектом в массиве reviews.
+КРИТИЧЕСКИ ВАЖНО: текст отзывов (поле "text") копируй ДОСЛОВНО, слово в слово, без перефразирования, сокращения или изменения. Если текст отзыва обрезан — копируй как есть. Саммари (summary, positives, negatives) — своими словами.`;
 
   try {
     const res = await fetch("https://api.deepseek.com/chat/completions", {
@@ -96,7 +96,7 @@ ${pagesText || "Нет"}
           { role: "system", content: "Отвечай только валидным JSON без markdown." },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2, max_tokens: 4000,
+        temperature: 0.2, max_tokens: 8000,
       }),
     });
     if (!res.ok) { console.log(`  ⚠ DeepSeek ${res.status}`); return null; }
@@ -118,18 +118,32 @@ const iconMap = {
 async function processStudio(studio) {
   console.log(`\n→ ${studio.name}`);
 
-  const r1 = await braveSearch(`"${studio.name}" отзывы`);
-  await new Promise((r) => setTimeout(r, 1000));
-  const r2 = await braveSearch(`"${studio.name}" отзывы дизайн интерьера`);
-  await new Promise((r) => setTimeout(r, 1000));
+  const queries = [
+    `"${studio.name}" отзывы`,
+    `"${studio.name}" отзывы дизайн интерьера`,
+    `"${studio.name}" site:yandex.ru/maps`,
+    `"${studio.name}" site:2gis.ru`,
+    `"${studio.name}" site:zoon.ru`,
+    `"${studio.name}" site:flamp.ru`,
+    `"${studio.name}" site:otzovik.com`,
+    `"${studio.name}" site:houzz.ru`,
+    `"${studio.name}" site:inmyroom.ru`,
+  ];
+
+  const allResults = [];
+  for (const q of queries) {
+    const results = await braveSearch(q);
+    allResults.push(...results);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
 
   const seen = new Set();
-  const unique = [...r1, ...r2].filter((r) => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
+  const unique = allResults.filter((r) => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
   console.log(`  Найдено ${unique.length} результатов`);
   if (unique.length === 0) { console.log("  ✗ Нет результатов"); return; }
 
   // Fetch more pages for review extraction
-  const toFetch = unique.slice(0, 8);
+  const toFetch = unique.slice(0, 12);
   console.log(`  Загрузка ${toFetch.length} страниц...`);
   const pages = [];
   for (const r of toFetch) {
