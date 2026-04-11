@@ -181,7 +181,7 @@ export default async function DesignersPage({ searchParams }) {
                   <div className="w-40 flex-shrink-0 bg-slate-100 relative overflow-hidden self-stretch">
                     {studio.imageUrl ? (
                       <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        alt={studio.name} src={studio.imageUrl} loading="lazy" />
+                        alt={studio.name} src={studio.imageUrl} loading="lazy" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center min-h-[180px]">
                         <span className="material-symbols-outlined text-4xl text-slate-300">apartment</span>
