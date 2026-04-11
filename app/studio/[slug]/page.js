@@ -214,13 +214,13 @@ export default async function StudioPage({ params }) {
                 {arbDn.slice(0, 30).map((c, i) => (
                   <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
                     <div className="flex justify-between mb-1">
-                      <span className="font-bold font-mono">{c.case_number || c.caseNumber || "—"}</span>
-                      <span className="text-outline">{c.registration_date || c.date || ""}</span>
+                      <a href={c.kad_arbitr_link || "#"} target="_blank" rel="noopener noreferrer" className="font-bold font-mono text-primary hover:underline">{c.id || c.first_number || "—"}</a>
+                      <span className="text-outline">{c.date_start || ""}</span>
                     </div>
-                    {(c.case_type || c.category) && <p className="text-slate-500">{c.case_type || c.category}</p>}
-                    {(c.plaintiff || c.claimant) && <p>Истец: {c.plaintiff || c.claimant}</p>}
-                    {(c.defendant || c.respondent) && <p>Ответчик: {c.defendant || c.respondent}</p>}
-                    {c.amount && <p className="font-semibold">Сумма: {Number(c.amount).toLocaleString("ru-RU")} ₽</p>}
+                    {c.plaintiffs?.[0] && <p>Истец: <span className="font-semibold">{c.plaintiffs[0].name}</span></p>}
+                    {c.respondents?.[0] && <p>Ответчик: <span className="font-semibold">{c.respondents[0].name}</span></p>}
+                    {c.sum && <p className="font-semibold mt-1">Сумма: {Number(c.sum).toLocaleString("ru-RU")} ₽</p>}
+                    {c.instances?.[0] && <p className="text-outline">{c.instances[0]}</p>}
                   </div>
                 ))}
               </div>
@@ -234,10 +234,15 @@ export default async function StudioPage({ params }) {
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {leases.slice(0, 20).map((l, i) => (
                   <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
-                    {l.lessor_name && <p>Лизингодатель: <span className="font-semibold">{l.lessor_name}</span></p>}
-                    {l.subject && <p>Предмет: {l.subject}</p>}
-                    {l.contract_date && <p className="text-outline">Дата: {l.contract_date}</p>}
-                    {l.amount && <p className="font-semibold">Сумма: {Number(l.amount).toLocaleString("ru-RU")} ₽</p>}
+                    <div className="flex justify-between mb-1">
+                      <span className="font-bold">Договор №{l.contractNumber || "—"}</span>
+                      <span className="text-outline">{l.contractDate || l.startDate || ""}</span>
+                    </div>
+                    {l.lessor?.data?.fullName && <p>Лизингодатель: <span className="font-semibold">{l.lessor.data.fullName}</span></p>}
+                    {l.lessee?.data?.fullName && <p>Лизингополучатель: <span className="font-semibold">{l.lessee.data.fullName}</span></p>}
+                    {l.subjects?.[0]?.description && <p>Предмет: {l.subjects[0].description}</p>}
+                    {l.stopReason && <p className="text-outline">Статус: {l.stopReason.trim()}</p>}
+                    {l.startDate && l.endDate && <p className="text-outline">Период: {l.startDate} — {l.endDate}</p>}
                   </div>
                 ))}
               </div>
