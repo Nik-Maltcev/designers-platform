@@ -110,94 +110,176 @@ export default async function StudioPage({ params }) {
         </div>
       </div>
 
-      {studio.companyData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-          <div className="bg-surface-container-low p-8 rounded-xl">
-            <h3 className="text-xl font-bold mb-6 font-headline">Финансовые данные</h3>
-            <div className="space-y-4">
-              {studio.companyData.revenue && (
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-                  <div>
-                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Выручка</span>
-                    <p className="text-lg font-bold text-on-surface">{Number(studio.companyData.revenue).toLocaleString("ru-RU")} ₽</p>
-                  </div>
-                  <span className="material-symbols-outlined text-primary text-2xl">trending_up</span>
-                </div>
-              )}
-              {studio.companyData.profit && (
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-                  <div>
-                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Чистая прибыль</span>
-                    <p className="text-lg font-bold text-on-surface">{Number(studio.companyData.profit).toLocaleString("ru-RU")} ₽</p>
-                  </div>
-                  <span className="material-symbols-outlined text-primary text-2xl">account_balance</span>
-                </div>
-              )}
-              {studio.companyData.employees && (
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-                  <div>
-                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Сотрудников</span>
-                    <p className="text-lg font-bold text-on-surface">{studio.companyData.employees}</p>
-                  </div>
-                  <span className="material-symbols-outlined text-primary text-2xl">groups</span>
-                </div>
-              )}
-              {studio.companyData.registrationDate && (
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-                  <div>
-                    <span className="text-xs text-outline uppercase font-bold tracking-wider">Дата регистрации</span>
-                    <p className="text-sm font-semibold text-on-surface">{studio.companyData.registrationDate}</p>
-                  </div>
-                  <span className="material-symbols-outlined text-primary text-2xl">calendar_month</span>
-                </div>
-              )}
+      {studio.companyData && (() => {
+        const cd = studio.companyData;
+        const ck = cd.rawCheckko || {};
+        const dn = cd.rawDataNewton || {};
+        const company = ck.company || dn.company || {};
+        const finances = ck.finances;
+        const finDocs = Array.isArray(finances?.Документы) ? finances.Документы : Array.isArray(finances) ? finances : [];
+        const arbDn = dn.arbitration?.data || [];
+        const leases = dn.leases?.data || [];
+        const vacancies = dn.vacancies?.data || [];
+        const products = dn.products?.data || [];
+        const inspections = ck.inspections;
+        const inspArr = Array.isArray(inspections?.Документы) ? inspections.Документы : Array.isArray(inspections) ? inspections : [];
+        const bankData = ck.bank;
+        const fedresurs = ck.fedresurs;
+        const fedArr = Array.isArray(fedresurs?.Документы) ? fedresurs.Документы : Array.isArray(fedresurs) ? fedresurs : [];
+        const bankruptcyMsgs = ck.bankruptcyMsgs;
+        const bankrArr = Array.isArray(bankruptcyMsgs?.Документы) ? bankruptcyMsgs.Документы : Array.isArray(bankruptcyMsgs) ? bankruptcyMsgs : [];
+        const enfArr = Array.isArray(cd.enforcements) ? cd.enforcements : [];
+        const courtArr = Array.isArray(cd.courtCases) ? cd.courtCases : [];
+        const contractsArr = Array.isArray(cd.contracts) ? cd.contracts : [];
+
+        return (
+        <div className="space-y-8 mb-16">
+          {/* Основная информация */}
+          <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+            <h3 className="text-xl font-bold mb-6 font-headline">Информация о компании</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {cd.fullName && <div className="col-span-2"><span className="block text-xs text-outline uppercase font-bold mb-1">Полное название</span><span className="text-sm font-semibold">{cd.fullName}</span></div>}
+              {cd.director && <div><span className="block text-xs text-outline uppercase font-bold mb-1">Руководитель / ФИО ИП</span><span className="text-sm font-semibold">{cd.director}</span></div>}
+              {(company.name || company.НаимСокр) && !cd.director && <div><span className="block text-xs text-outline uppercase font-bold mb-1">ФИО / Название</span><span className="text-sm font-semibold">{company.name || company.НаимСокр}</span></div>}
+              {cd.ogrn && <div><span className="block text-xs text-outline uppercase font-bold mb-1">ОГРН</span><span className="text-sm font-semibold font-mono">{cd.ogrn}</span></div>}
+              {cd.status && <div><span className="block text-xs text-outline uppercase font-bold mb-1">Статус</span><span className={`text-sm font-semibold ${cd.status === "Действует" || company.active ? "text-teal-600" : "text-red-600"}`}>{cd.status}</span></div>}
+              {(cd.registrationDate || company.establishment_date || company.ДатаРег) && <div><span className="block text-xs text-outline uppercase font-bold mb-1">Дата регистрации</span><span className="text-sm font-semibold">{cd.registrationDate || company.establishment_date || company.ДатаРег}</span></div>}
+              {cd.address && <div className="col-span-2"><span className="block text-xs text-outline uppercase font-bold mb-1">Адрес</span><span className="text-sm font-semibold">{cd.address}</span></div>}
+              {(company.activity_kind_dsc || company.ОКВЭД) && <div className="col-span-2"><span className="block text-xs text-outline uppercase font-bold mb-1">Вид деятельности (ОКВЭД)</span><span className="text-sm font-semibold">{company.activity_kind_dsc || company.ОКВЭД} {company.activity_kind ? `(${company.activity_kind})` : ""}</span></div>}
+              {cd.employees && <div><span className="block text-xs text-outline uppercase font-bold mb-1">Сотрудников</span><span className="text-sm font-semibold">{cd.employees}</span></div>}
+              {(company.type || company.ОПФ) && <div><span className="block text-xs text-outline uppercase font-bold mb-1">Тип</span><span className="text-sm font-semibold">{company.type === "ip" ? "ИП" : company.type === "ul" ? "ЮЛ" : company.ОПФ || company.type}</span></div>}
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
-            <h3 className="text-xl font-bold mb-6 font-headline">Проверка контрагента</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
-                <div>
-                  <span className="text-xs text-outline uppercase font-bold">Судебные дела</span>
-                  <p className="text-sm font-semibold">{studio.companyData.courtCasesCount} дел</p>
-                </div>
-                <div className={`flex items-center gap-1 text-xs font-bold uppercase ${studio.companyData.courtCasesCount === 0 ? "text-teal-600" : "text-amber-600"}`}>
-                  <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{studio.companyData.courtCasesCount === 0 ? "check_circle" : "warning"}</span>
-                  {studio.companyData.courtCasesCount === 0 ? "Нет" : "Есть"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
-                <div>
-                  <span className="text-xs text-outline uppercase font-bold">Госконтракты</span>
-                  <p className="text-sm font-semibold">{studio.companyData.contractsCount} контрактов</p>
-                </div>
-                <span className="material-symbols-outlined text-primary text-sm">description</span>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
-                <div>
-                  <span className="text-xs text-outline uppercase font-bold">Исполнительные производства</span>
-                  <p className="text-sm font-semibold">{studio.companyData.enforcementsCount} производств</p>
-                </div>
-                <div className={`flex items-center gap-1 text-xs font-bold uppercase ${studio.companyData.enforcementsCount === 0 ? "text-teal-600" : "text-red-600"}`}>
-                  <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{studio.companyData.enforcementsCount === 0 ? "check_circle" : "error"}</span>
-                  {studio.companyData.enforcementsCount === 0 ? "Нет" : "Есть"}
-                </div>
-              </div>
-              {studio.companyData.status && (
-                <div className="flex items-center justify-between p-4 bg-surface rounded-lg">
-                  <div>
-                    <span className="text-xs text-outline uppercase font-bold">Статус организации</span>
-                    <p className="text-sm font-semibold">{studio.companyData.status}</p>
+
+          {/* Финансы + Проверка контрагента */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Финансы */}
+            <div className="bg-surface-container-low p-8 rounded-xl">
+              <h3 className="text-xl font-bold mb-6 font-headline">Финансовые данные</h3>
+              <div className="space-y-3">
+                {cd.revenue && <div className="flex justify-between p-3 bg-white rounded-lg shadow-sm"><div><span className="text-xs text-outline uppercase font-bold">Выручка</span><p className="text-lg font-bold">{Number(cd.revenue).toLocaleString("ru-RU")} ₽</p></div><span className="material-symbols-outlined text-primary text-xl">trending_up</span></div>}
+                {cd.profit && <div className="flex justify-between p-3 bg-white rounded-lg shadow-sm"><div><span className="text-xs text-outline uppercase font-bold">Чистая прибыль</span><p className="text-lg font-bold">{Number(cd.profit).toLocaleString("ru-RU")} ₽</p></div><span className="material-symbols-outlined text-primary text-xl">account_balance</span></div>}
+                {finDocs.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs text-outline uppercase font-bold mb-2">Финансовая отчётность по годам</p>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {finDocs.slice(0, 10).map((doc, i) => (
+                        <div key={i} className="text-xs p-2 bg-white rounded border border-slate-100">
+                          <span className="font-bold">{doc.Год || doc.year || `Период ${i + 1}`}</span>
+                          {(doc.Выручка || doc["2110"]) && <span className="ml-2">Выручка: {Number(doc.Выручка || doc["2110"]).toLocaleString("ru-RU")} ₽</span>}
+                          {(doc.ЧистаяПрибыль || doc["2400"]) && <span className="ml-2">Прибыль: {Number(doc.ЧистаяПрибыль || doc["2400"]).toLocaleString("ru-RU")} ₽</span>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <span className="material-symbols-outlined text-teal-600 text-sm" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
+                )}
+              </div>
+            </div>
+
+            {/* Проверка контрагента */}
+            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+              <h3 className="text-xl font-bold mb-6 font-headline">Проверка контрагента</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between p-3 bg-surface rounded-lg">
+                  <div><span className="text-xs text-outline uppercase font-bold">Судебные дела</span><p className="text-sm font-semibold">{cd.courtCasesCount} дел</p></div>
+                  <div className={`flex items-center gap-1 text-xs font-bold ${cd.courtCasesCount === 0 ? "text-teal-600" : "text-amber-600"}`}>
+                    <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{cd.courtCasesCount === 0 ? "check_circle" : "warning"}</span>
+                    {cd.courtCasesCount === 0 ? "Нет" : "Есть"}
+                  </div>
                 </div>
-              )}
-              <p className="text-[10px] text-outline mt-2">Данные актуальны на {new Date(studio.companyData.fetchedAt).toLocaleDateString("ru-RU")}</p>
+                <div className="flex justify-between p-3 bg-surface rounded-lg">
+                  <div><span className="text-xs text-outline uppercase font-bold">Госконтракты</span><p className="text-sm font-semibold">{cd.contractsCount} контрактов</p></div>
+                  <span className="material-symbols-outlined text-primary text-sm">description</span>
+                </div>
+                <div className="flex justify-between p-3 bg-surface rounded-lg">
+                  <div><span className="text-xs text-outline uppercase font-bold">Исполнительные производства</span><p className="text-sm font-semibold">{cd.enforcementsCount} производств</p></div>
+                  <div className={`flex items-center gap-1 text-xs font-bold ${cd.enforcementsCount === 0 ? "text-teal-600" : "text-red-600"}`}>
+                    <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>{cd.enforcementsCount === 0 ? "check_circle" : "error"}</span>
+                    {cd.enforcementsCount === 0 ? "Нет" : "Есть"}
+                  </div>
+                </div>
+                {inspArr.length > 0 && <div className="flex justify-between p-3 bg-surface rounded-lg"><div><span className="text-xs text-outline uppercase font-bold">Проверки</span><p className="text-sm font-semibold">{inspArr.length}</p></div><span className="material-symbols-outlined text-primary text-sm">fact_check</span></div>}
+                {bankrArr.length > 0 && <div className="flex justify-between p-3 bg-surface rounded-lg"><div><span className="text-xs text-outline uppercase font-bold">Сообщения о банкротстве</span><p className="text-sm font-semibold">{bankrArr.length}</p></div><span className="material-symbols-outlined text-red-600 text-sm">dangerous</span></div>}
+                {fedArr.length > 0 && <div className="flex justify-between p-3 bg-surface rounded-lg"><div><span className="text-xs text-outline uppercase font-bold">Федресурс</span><p className="text-sm font-semibold">{fedArr.length} записей</p></div><span className="material-symbols-outlined text-primary text-sm">article</span></div>}
+              </div>
             </div>
           </div>
+
+          {/* Арбитражные дела (DataNewton) */}
+          {arbDn.length > 0 && (
+            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+              <h3 className="text-lg font-bold mb-4 font-headline">Арбитражные дела ({arbDn.length})</h3>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {arbDn.slice(0, 30).map((c, i) => (
+                  <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
+                    <div className="flex justify-between mb-1">
+                      <span className="font-bold font-mono">{c.case_number || c.caseNumber || "—"}</span>
+                      <span className="text-outline">{c.registration_date || c.date || ""}</span>
+                    </div>
+                    {(c.case_type || c.category) && <p className="text-slate-500">{c.case_type || c.category}</p>}
+                    {(c.plaintiff || c.claimant) && <p>Истец: {c.plaintiff || c.claimant}</p>}
+                    {(c.defendant || c.respondent) && <p>Ответчик: {c.defendant || c.respondent}</p>}
+                    {c.amount && <p className="font-semibold">Сумма: {Number(c.amount).toLocaleString("ru-RU")} ₽</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Лизинговые договоры */}
+          {leases.length > 0 && (
+            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+              <h3 className="text-lg font-bold mb-4 font-headline">Лизинговые договоры ({leases.length})</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {leases.slice(0, 20).map((l, i) => (
+                  <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
+                    {l.lessor_name && <p>Лизингодатель: <span className="font-semibold">{l.lessor_name}</span></p>}
+                    {l.subject && <p>Предмет: {l.subject}</p>}
+                    {l.contract_date && <p className="text-outline">Дата: {l.contract_date}</p>}
+                    {l.amount && <p className="font-semibold">Сумма: {Number(l.amount).toLocaleString("ru-RU")} ₽</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Вакансии */}
+          {vacancies.length > 0 && (
+            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+              <h3 className="text-lg font-bold mb-4 font-headline">Вакансии ({dn.vacancies?.total_vacancies || vacancies.length})</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {vacancies.slice(0, 20).map((v, i) => (
+                  <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
+                    <p className="font-semibold">{v.vacancy_name || v.name}</p>
+                    {v.salary && <p>Зарплата: {v.salary}</p>}
+                    {(v.salary_min || v.salary_max) && <p>Зарплата: {v.salary_min || "—"} — {v.salary_max || "—"} ₽</p>}
+                    {v.region_name && <p className="text-outline">{v.region_name}</p>}
+                    {v.published_date && <p className="text-outline">{new Date(v.published_date).toLocaleDateString("ru-RU")}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Продукция */}
+          {products.length > 0 && (
+            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/15">
+              <h3 className="text-lg font-bold mb-4 font-headline">Продукция / Товарные знаки</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {products.slice(0, 20).map((p, i) => (
+                  <div key={i} className="text-xs p-3 bg-surface rounded-lg border border-slate-100">
+                    <p className="font-semibold">{p.name || p.title || JSON.stringify(p).slice(0, 200)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[10px] text-outline">Данные актуальны на {new Date(cd.fetchedAt).toLocaleDateString("ru-RU")} · Источники: Checkko, DataNewton</p>
         </div>
-      )}
+        );
+      })()}
 
       {studio.reviewSummary && (studio.reviewSummary.summary || (Array.isArray(studio.reviewSummary.sources) && studio.reviewSummary.sources.length > 0)) && (
         <div className="bg-surface-container-lowest p-8 rounded-xl mb-16 border border-outline-variant/15">
