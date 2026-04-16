@@ -11,9 +11,20 @@ const KIMI_MODEL = "kimi-k2-0905-preview";
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
-const urls = fs.readFileSync("designer.csv", "utf-8")
-  .split("\n").map(u => u.trim()).filter(Boolean)
-  .filter((u, i, a) => a.indexOf(u) === i);
+const csvFile = fs.existsSync("all.csv") ? "all.csv" : "designer.csv";
+const csvLines = fs.readFileSync(csvFile, "utf-8").split("\n").filter(l => l.trim());
+const hasHeader = csvLines[0]?.includes("URL") || csvLines[0]?.includes("ИНН");
+const dataLines = hasHeader ? csvLines.slice(1) : csvLines;
+
+const entries = dataLines
+  .map(l => {
+    const parts = l.split(",");
+    const url = parts[0]?.trim();
+    const inn = parts[1]?.trim() || null;
+    return { url, inn: inn && /^\d{10,12}$/.test(inn) ? inn : null };
+  })
+  .filter(e => e.url)
+  .filter((e, i, a) => a.findIndex(x => x.url === e.url) === i);
 
 function normalizeUrl(url) {
   if (!url.startsWith("http")) url = "https://" + url;
@@ -130,9 +141,9 @@ async function fetchInn(baseUrl) {
   return null;
 }
 
-async function processStudio(url) {
+async function processStudio(url, csvInn) {
   const normalized = normalizeUrl(url);
-  console.log(`→ ${normalized}`);
+  console.log(`→ ${normalized}${csvInn ? ` (ИНН: ${csvInn})` : ""}`);
 
   const existing = await prisma.studio.findFirst({ where: { website: normalized } });
   if (existing) { console.log(`  ✓ exists: ${existing.name}`); return; }
@@ -211,8 +222,8 @@ async function processStudio(url) {
     }
   }
 
-  // Find INN
-  let inn = info.inn || null;
+  // Find INN — use CSV first, then AI, then scrape
+  let inn = csvInn || info.inn || null;
   if (!inn) {
     console.log(`  🔍 INN...`);
     inn = await fetchInn(normalized);
@@ -241,12 +252,13 @@ async function processStudio(url) {
 
 async function main() {
   browser = await chromium.launch({ headless: true });
-  const limit = parseInt(process.env.PARSE_LIMIT) || urls.length;
-  const toProcess = urls.slice(0, limit);
-  console.log(`\nПарсинг ${toProcess.length} из ${urls.length} студий (Playwright)...\n`);
+  const limit = parseInt(process.env.PARSE_LIMIT) || entries.length;
+  const toProcess = entries.slice(0, limit);
+  const withInn = toProcess.filter(e => e.inn).length;
+  console.log(`\nПарсинг ${toProcess.length} из ${entries.length} студий (${withInn} с ИНН) из ${csvFile}...\n`);
   for (let i = 0; i < toProcess.length; i++) {
     try {
-      await processStudio(toProcess[i]);
+      await processStudio(toProcess[i].url, toProcess[i].inn);
     } catch (err) {
       console.log(`  💥 Crash: ${err.message}`);
     }

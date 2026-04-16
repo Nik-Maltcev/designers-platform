@@ -15,9 +15,10 @@ const root = resolve(__dirname, "..");
 
 const steps = [
   { name: "Парсинг студий", script: "scripts/parse-studios.js" },
-  { name: "Сбор отзывов (Brave + Gemini)", script: "scripts/collect-reviews.mjs" },
-  { name: "Обогащение Checkko", script: "scripts/enrich-checkko.js" },
-  { name: "Обогащение DataNewton", script: "scripts/enrich-datanewton.js" },
+  { name: "Обогащение по ИНН (Checkko + DataNewton)", script: "scripts/enrich-from-csv.mjs" },
+  { name: "Обогащение Checkko (остальные)", script: "scripts/enrich-checkko.js" },
+  { name: "Обогащение DataNewton (остальные)", script: "scripts/enrich-datanewton.js" },
+  { name: "Сбор отзывов (Brave + DeepSeek)", script: "scripts/collect-reviews.mjs" },
 ];
 
 for (const step of steps) {
