@@ -8,7 +8,6 @@ import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
-const CHECKKO_KEY = process.env.CHECKKO_API_KEY;
 const DN_KEY = process.env.DATANEWTON_API_KEY;
 
 function slugify(name) {
@@ -16,12 +15,35 @@ function slugify(name) {
   return name.toLowerCase().split("").map(c => tr[c] || c).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 }
 
+const CHECKKO_KEYS = [process.env.CHECKKO_API_KEY, process.env.CHECKKO_API_KEY_2].filter(Boolean);
+let checkkoKeyIndex = 0;
+
+function getCheckkoKey() {
+  return CHECKKO_KEYS[checkkoKeyIndex];
+}
+
+function switchCheckkoKey() {
+  if (checkkoKeyIndex < CHECKKO_KEYS.length - 1) {
+    checkkoKeyIndex++;
+    console.log(`  🔄 Переключение на Checkko ключ ${checkkoKeyIndex + 1}`);
+    return true;
+  }
+  return false;
+}
+
 // --- Checkko API ---
 async function checkkoApi(endpoint, inn) {
-  const url = `https://api.checko.ru/v2${endpoint}?key=${CHECKKO_KEY}&inn=${inn}`;
+  const url = `https://api.checko.ru/v2${endpoint}?key=${getCheckkoKey()}&inn=${inn}`;
   try {
     const res = await fetch(url);
     const data = await res.json();
+    if (data.meta?.status === 429 || data.meta?.message?.includes("лимит")) {
+      if (switchCheckkoKey()) {
+        return checkkoApi(endpoint, inn);
+      }
+      console.log(`  ⚠ Checkko: лимит исчерпан на всех ключах`);
+      return null;
+    }
     if (data.data) return data.data;
     return null;
   } catch { return null; }

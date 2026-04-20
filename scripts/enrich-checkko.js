@@ -1,14 +1,24 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
-const KEY = process.env.CHECKKO_API_KEY;
+const KEYS = [process.env.CHECKKO_API_KEY, process.env.CHECKKO_API_KEY_2].filter(Boolean);
+let keyIndex = 0;
 const BASE = "https://api.checko.ru/v2";
 
 async function api(endpoint, inn) {
-  const url = `${BASE}${endpoint}?key=${KEY}&inn=${inn}`;
+  const url = `${BASE}${endpoint}?key=${KEYS[keyIndex]}&inn=${inn}`;
   try {
     const res = await fetch(url);
     const data = await res.json();
+    if (data.meta?.status === 429 || data.meta?.message?.includes("лимит")) {
+      if (keyIndex < KEYS.length - 1) {
+        keyIndex++;
+        console.log(`  🔄 Checkko ключ ${keyIndex + 1}`);
+        return api(endpoint, inn);
+      }
+      console.log(`  ⚠ Checkko: лимит на всех ключах`);
+      return null;
+    }
     if (data.data) return data.data;
     if (data.meta?.message) console.log(`  ⚠ ${endpoint}: ${data.meta.message}`);
     return null;
