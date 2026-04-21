@@ -183,7 +183,7 @@ async function processStudio(url, csvInn) {
       }, new URL(fullUrl).hostname);
 
       const skip = ["/blog", "/uslugi", "/service", "/contact", "/about", "/price", "/news", "/faq", "/login", "/cart", "/policy"];
-      projectLinks = links.filter(l => !skip.some(s => l.toLowerCase().includes(s))).slice(0, 40);
+      projectLinks = links.filter(l => !skip.some(s => l.toLowerCase().includes(s)));
       await ctx.close();
       if (projectLinks.length > 3) {
         console.log(`  📂 ${projectLinks.length} projects from ${path} (tabs clicked)`);
