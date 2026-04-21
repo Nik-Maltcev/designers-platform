@@ -5,12 +5,6 @@ import "dotenv/config";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const KIMI_KEY = process.env.MOONSHOT_API_KEY;
-const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
-const KIMI_MODEL = "kimi-k2-0905-preview";
-
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-
 const KIMI_KEY = process.env.MOONSHOT_API_KEY;
 const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
 const KIMI_MODEL = "kimi-k2-0905-preview";

@@ -1,5 +1,5 @@
 /**
- * Сбор отзывов: Brave Search → fetch страниц → DeepSeek извлекает отзывы.
+ * Сбор отзывов: Brave Search → fetch страниц → Kimi извлекает отзывы.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -44,7 +44,7 @@ async function fetchPageText(url) {
   } catch { return null; }
 }
 
-async function analyzeWithDeepSeek(studioName, searchResults, pages) {
+async function analyzeWithKimi(studioName, searchResults, pages) {
   const context = searchResults
     .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
     .join("\n\n");
@@ -99,14 +99,14 @@ ${pagesText || "Нет"}
         temperature: 0.2, max_tokens: 8000,
       }),
     });
-    if (!res.ok) { console.log(`  ⚠ DeepSeek ${res.status}`); return null; }
+    if (!res.ok) { console.log(`  ⚠ Kimi ${res.status}`); return null; }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content || "";
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]);
-  } catch (err) { console.log(`  ✗ DeepSeek: ${err.message}`); return null; }
+  } catch (err) { console.log(`  ✗ Kimi: ${err.message}`); return null; }
 }
 
 const iconMap = {
@@ -154,9 +154,9 @@ async function processStudio(studio) {
   const loaded = pages.filter((p) => p.text).length;
   console.log(`  Загружено ${loaded} страниц`);
 
-  console.log("  Анализ через DeepSeek...");
-  const analysis = await analyzeWithDeepSeek(studio.name, unique, pages);
-  if (!analysis) { console.log("  ✗ DeepSeek не вернул результат"); return; }
+  console.log("  Анализ через Kimi...");
+  const analysis = await analyzeWithKimi(studio.name, unique, pages);
+  if (!analysis) { console.log("  ✗ Kimi не вернул результат"); return; }
 
   const sources = (analysis.sources || []).map((s) => {
     const key = Object.keys(iconMap).find((k) => s.platform.toLowerCase().includes(k));

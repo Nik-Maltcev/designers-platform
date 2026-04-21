@@ -18,7 +18,7 @@ const steps = [
   { name: "Обогащение по ИНН (Checkko + DataNewton)", script: "scripts/enrich-from-csv.mjs" },
   { name: "Обогащение Checkko (остальные)", script: "scripts/enrich-checkko.js" },
   { name: "Обогащение DataNewton (остальные)", script: "scripts/enrich-datanewton.js" },
-  { name: "Сбор отзывов (Brave + DeepSeek)", script: "scripts/collect-reviews.mjs" },
+  { name: "Сбор отзывов (Brave + Kimi)", script: "scripts/collect-reviews.mjs" },
 ];
 
 for (const step of steps) {
