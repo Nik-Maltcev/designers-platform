@@ -11,6 +11,10 @@ const KIMI_MODEL = "kimi-k2-0905-preview";
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
+const KIMI_KEY = process.env.MOONSHOT_API_KEY;
+const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_MODEL = "kimi-k2-0905-preview";
+
 const csvFile = fs.existsSync("all.csv") ? "all.csv" : "designer.csv";
 const csvLines = fs.readFileSync(csvFile, "utf-8").split("\n").filter(l => l.trim());
 const hasHeader = csvLines[0]?.includes("URL") || csvLines[0]?.includes("ИНН");
@@ -111,13 +115,13 @@ async function askAI(text, prompt) {
     { role: "user", content: prompt + "\n\n" + text },
   ];
   try {
-    const raw = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", messages);
+    const raw = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, messages);
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     try {
       return JSON.parse(cleaned);
     } catch {
       // Retry with stricter prompt if JSON invalid
-      const raw2 = await callLLM(DEEPSEEK_URL, DEEPSEEK_KEY, "deepseek-chat", [
+      const raw2 = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, [
         ...messages,
         { role: "assistant", content: cleaned },
         { role: "user", content: "Это невалидный JSON. Исправь и верни только валидный JSON." },

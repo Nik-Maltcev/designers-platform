@@ -6,10 +6,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+const KIMI_KEY = process.env.MOONSHOT_API_KEY;
 
 if (!BRAVE_KEY) { console.error("❌ BRAVE_SEARCH_API_KEY не задан"); process.exit(1); }
-if (!DEEPSEEK_KEY) { console.error("❌ DEEPSEEK_API_KEY не задан"); process.exit(1); }
+if (!KIMI_KEY) { console.error("❌ MOONSHOT_API_KEY не задан"); process.exit(1); }
 
 async function braveSearch(query) {
   const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=20&search_lang=ru`;
@@ -87,11 +87,11 @@ ${pagesText || "Нет"}
 КРИТИЧЕСКИ ВАЖНО: текст отзывов (поле "text") копируй ДОСЛОВНО, слово в слово, без перефразирования, сокращения или изменения. Если текст отзыва обрезан — копируй как есть. Саммари (summary, positives, negatives) — своими словами.`;
 
   try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
+    const res = await fetch("https://api.moonshot.ai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${DEEPSEEK_KEY}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${KIMI_KEY}` },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "kimi-k2-0905-preview",
         messages: [
           { role: "system", content: "Отвечай только валидным JSON без markdown." },
           { role: "user", content: prompt },
