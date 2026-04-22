@@ -53,6 +53,34 @@ export async function POST(request) {
     data: { userId: session.user.id, action: "project_request_created", targetId: pr.id, targetType: "project_request" },
   });
 
+  // Email notification
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.default.createTransport({
+    host: process.env.EMAIL_SERVER_HOST,
+    port: Number(process.env.EMAIL_SERVER_PORT),
+    auth: { user: process.env.EMAIL_SERVER_USER, pass: process.env.EMAIL_SERVER_PASSWORD },
+  });
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: "tomas-carter@yandex.ru",
+      subject: `🆕 Новый проект: ${category} — ${contactName || "Аноним"}`,
+      text: [
+        `Имя: ${contactName || "—"}`,
+        `Email: ${contactEmail || "—"}`,
+        `Телефон: ${contactPhone || "—"}`,
+        `Роль: ${role || "—"}`,
+        `Категория: ${category}`,
+        `Локация: ${location || "—"}`,
+        `Тип объекта: ${objectType || "—"}`,
+        `Уровень: ${level || "—"}`,
+        `Срочность: ${urgency || "—"}`,
+        `Описание: ${description || "—"}`,
+        `Скрыть телефон: ${hidePhone ? "Да" : "Нет"}`,
+      ].join("\n"),
+    });
+  } catch (err) { console.error("Email error:", err.message); }
+
   // Telegram notification
   const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const TG_CHAT = process.env.TELEGRAM_CHAT_ID;
