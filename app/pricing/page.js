@@ -170,6 +170,14 @@ export default function PricingPage() {
 
       {/* Trust Elements */}
       <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Test Plan */}
+        <div className="bg-amber-50 p-8 rounded-xl border-2 border-amber-300 border-dashed">
+          <span className="inline-block bg-amber-400 text-white px-3 py-1 rounded-full text-xs font-bold uppercase mb-4">Тест</span>
+          <h4 className="font-bold font-headline text-lg mb-2">Тестовый тариф</h4>
+          <div className="text-3xl font-black font-headline text-on-surface mb-2">5 ₽</div>
+          <p className="text-sm text-on-surface-variant mb-6">Все возможности Профи. Для проверки оплаты.</p>
+          <PayButton plan="test" label="Оплатить 5 ₽ (тест)" className="w-full bg-amber-500 text-white px-6 py-3 rounded-md font-bold text-sm hover:bg-amber-600 transition-colors disabled:opacity-50" />
+        </div>
         <div className="bg-surface-container-low p-8 rounded-xl">
           <span className="material-symbols-outlined text-primary text-3xl mb-4">verified</span>
           <h4 className="font-bold font-headline text-lg mb-2">Статус «Проверен»</h4>

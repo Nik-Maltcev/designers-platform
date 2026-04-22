@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 
-export default function PayButton() {
+export default function PayButton({ plan = "pro", label, className }) {
   const [loading, setLoading] = useState(false);
 
   async function handlePay() {
     setLoading(true);
     try {
-      const res = await fetch("/api/payment/create", { method: "POST" });
+      const res = await fetch("/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
       const data = await res.json();
       if (data.confirmationUrl) {
         window.location.href = data.confirmationUrl;
@@ -25,9 +29,9 @@ export default function PayButton() {
     <button
       onClick={handlePay}
       disabled={loading}
-      className="hero-gradient text-on-primary px-10 py-5 rounded-md font-bold text-lg flex-grow hover:shadow-xl hover:translate-y-[-2px] transition-all disabled:opacity-50"
+      className={className || "hero-gradient text-on-primary px-10 py-5 rounded-md font-bold text-lg flex-grow hover:shadow-xl hover:translate-y-[-2px] transition-all disabled:opacity-50"}
     >
-      {loading ? "Переход к оплате..." : "Подключить Профи"}
+      {loading ? "Переход к оплате..." : (label || "Подключить Профи")}
     </button>
   );
 }

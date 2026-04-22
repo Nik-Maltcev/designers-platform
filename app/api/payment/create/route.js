@@ -9,30 +9,38 @@ const checkout = new YooCheckout({
   secretKey: process.env.YOOKASSA_SECRET_KEY,
 });
 
-export async function POST() {
+export async function POST(request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  const amount = 29990;
+  const body = await request.json().catch(() => ({}));
+  const plan = body.plan || "pro";
+
+  const plans = {
+    test: { amount: 5, description: "Тестовый тариф", name: "Тестовый тариф" },
+    pro: { amount: 29990, description: "Подписка Профи на 1 год", name: "Подписка Профи" },
+  };
+
+  const selected = plans[plan] || plans.pro;
 
   try {
     const payment = await checkout.createPayment(
       {
-        amount: { value: String(amount) + ".00", currency: "RUB" },
+        amount: { value: String(selected.amount) + ".00", currency: "RUB" },
         capture: true,
         confirmation: {
           type: "redirect",
           return_url: `${process.env.NEXTAUTH_URL}/payment/success`,
         },
-        description: `Подписка Профи — ПроектЛист (${session.user.email})`,
-        metadata: { userId: session.user.id },
+        description: `${selected.name} — ПроектЛист (${session.user.email})`,
+        metadata: { userId: session.user.id, plan },
         receipt: {
           customer: { email: session.user.email },
           items: [
             {
-              description: "Подписка Профи на 1 год",
+              description: selected.description,
               quantity: "1",
-              amount: { value: String(amount) + ".00", currency: "RUB" },
+              amount: { value: String(selected.amount) + ".00", currency: "RUB" },
               vat_code: 1,
             },
           ],
@@ -44,9 +52,9 @@ export async function POST() {
     await prisma.subscription.create({
       data: {
         userId: session.user.id,
-        plan: "pro",
+        plan,
         status: "pending",
-        amount,
+        amount: selected.amount,
         yookassaId: payment.id,
       },
     });
