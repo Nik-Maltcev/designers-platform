@@ -57,6 +57,7 @@ export async function POST(request) {
   const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const TG_CHAT = process.env.TELEGRAM_CHAT_ID;
   if (TG_TOKEN && TG_CHAT) {
+    const chatIds = TG_CHAT.split(",").map(id => id.trim());
     const text = `🆕 Новый проект на подбор!\n\n` +
       `👤 ${contactName || "—"}\n` +
       `📧 ${contactEmail || "—"}\n` +
@@ -70,11 +71,13 @@ export async function POST(request) {
       `📝 Описание: ${description || "—"}\n` +
       `🔒 Скрыть телефон: ${hidePhone ? "Да" : "Нет"}`;
     try {
-      await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: "HTML" }),
-      });
+      for (const chatId of chatIds) {
+        await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+        });
+      }
     } catch {}
   }
 
