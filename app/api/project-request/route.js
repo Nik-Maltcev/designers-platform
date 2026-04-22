@@ -53,5 +53,30 @@ export async function POST(request) {
     data: { userId: session.user.id, action: "project_request_created", targetId: pr.id, targetType: "project_request" },
   });
 
+  // Telegram notification
+  const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  const TG_CHAT = process.env.TELEGRAM_CHAT_ID;
+  if (TG_TOKEN && TG_CHAT) {
+    const text = `🆕 Новый проект на подбор!\n\n` +
+      `👤 ${contactName || "—"}\n` +
+      `📧 ${contactEmail || "—"}\n` +
+      `📱 ${contactPhone || "—"}\n` +
+      `🏷 Роль: ${role || "—"}\n` +
+      `📦 Категория: ${category}\n` +
+      `📍 Локация: ${location || "—"}\n` +
+      `🏠 Тип: ${objectType || "—"}\n` +
+      `💎 Уровень: ${level || "—"}\n` +
+      `⏰ Срочность: ${urgency || "—"}\n` +
+      `📝 Описание: ${description || "—"}\n` +
+      `🔒 Скрыть телефон: ${hidePhone ? "Да" : "Нет"}`;
+    try {
+      await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: "HTML" }),
+      });
+    } catch {}
+  }
+
   return NextResponse.json({ success: true, id: pr.id });
 }
