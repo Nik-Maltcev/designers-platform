@@ -63,7 +63,7 @@ export async function POST(request) {
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: "tomas-carter@yandex.ru",
+      to: "skokov.ia@mail.ru",
       subject: `🆕 Новый проект: ${category} — ${contactName || "Аноним"}`,
       text: [
         `Имя: ${contactName || "—"}`,
