@@ -204,7 +204,7 @@ async function processStudio(url, csvInn) {
       title: pInfo.title || `Проект ${projects.length + 1}`,
       description: pInfo.description || null,
       imageUrls: imgs.slice(0, 15),
-      year: pInfo.year || null,
+      year: pInfo.year ? String(pInfo.year) : null,
       objectType: pInfo.objectType || null,
     });
     await new Promise(r => setTimeout(r, 300));
