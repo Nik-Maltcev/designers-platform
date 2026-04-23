@@ -155,7 +155,7 @@ async function processStudio(url, csvInn) {
   const normalized = normalizeUrl(url);
   console.log(`→ ${normalized}${csvInn ? ` (ИНН: ${csvInn})` : ""}`);
 
-  const existing = await prisma.studio.findFirst({ where: { website: normalized } });
+  const existing = await prisma.studio.findFirst({ where: { OR: [{ website: normalized }, { website: normalized.replace(/\/$/, "") }, { website: normalized + "/" }] } });
   if (existing) { console.log(`  ✓ exists: ${existing.name}`); return; }
 
   const main = await getPage(normalized);
