@@ -423,7 +423,7 @@ export default async function StudioPage({ params }) {
           <h2 className="text-2xl font-extrabold tracking-tight font-headline mb-8">Проекты</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {studio.projects.map((project) => (
-              <div key={project.id} className="group cursor-pointer">
+              <Link key={project.id} href={`/studio/${studio.slug}/project/${project.id}`} className="group">
                 <div className="aspect-[4/3] rounded-lg overflow-hidden bg-surface-container-highest mb-4 relative">
                   {project.imageUrls[0] ? (
                     <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={project.title} src={project.imageUrls[0]} referrerPolicy="no-referrer" />
@@ -442,7 +442,7 @@ export default async function StudioPage({ params }) {
                 {project.description && (
                   <p className="text-sm text-on-surface-variant line-clamp-2">{project.description}</p>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         </section>
