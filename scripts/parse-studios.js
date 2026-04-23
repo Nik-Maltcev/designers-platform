@@ -221,12 +221,7 @@ async function processStudio(url, csvInn) {
     await new Promise(r => setTimeout(r, 500));
   }
 
-  // Fallback: use main page images as projects
-  if (projects.length === 0 && main.images.length > 1) {
-    for (let i = 0; i < Math.min(main.images.length, 10); i++) {
-      projects.push({ title: `Проект ${i + 1}`, description: null, imageUrls: [main.images[i]], year: null, objectType: null });
-    }
-  }
+  // No fallback — better 0 projects than garbage
 
   // Find INN — use CSV first, then AI, then scrape
   let inn = csvInn || info.inn || null;
