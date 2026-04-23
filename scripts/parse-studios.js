@@ -118,12 +118,12 @@ async function askAI(text, prompt) {
     { role: "user", content: prompt + "\n\n" + text },
   ];
   try {
-    const raw = await callLLM("https://api.openai.com/v1/chat/completions", OPENAI_KEY, "gpt-4o-mini", messages);
+    const raw = await callLLM("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", process.env.QWEN_API_KEY, "qwen-plus", messages);
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     try {
       return JSON.parse(cleaned);
     } catch {
-      const raw2 = await callLLM("https://api.openai.com/v1/chat/completions", OPENAI_KEY, "gpt-4o-mini", [
+      const raw2 = await callLLM("https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", process.env.QWEN_API_KEY, "qwen-plus", [
         ...messages,
         { role: "assistant", content: cleaned },
         { role: "user", content: "Это невалидный JSON. Исправь и верни только валидный JSON." },
