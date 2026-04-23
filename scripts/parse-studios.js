@@ -8,6 +8,12 @@ const KIMI_KEY = process.env.MOONSHOT_API_KEY;
 const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
 const KIMI_MODEL = "kimi-k2-0905-preview";
 
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const PROXY_URL = process.env.HTTP_PROXY;
+
+import { HttpsProxyAgent } from "https-proxy-agent";
+const proxyAgent = PROXY_URL ? new HttpsProxyAgent(PROXY_URL) : null;
+
 const csvFile = fs.existsSync("all.csv") ? "all.csv" : "designer.csv";
 const csvLines = fs.readFileSync(csvFile, "utf-8").split("\n").filter(l => l.trim());
 const hasHeader = csvLines[0]?.includes("URL") || csvLines[0]?.includes("ИНН");
@@ -77,11 +83,15 @@ async function getPage(url, timeout = 15000) {
 
 async function callLLM(url, key, model, messages, attempt = 0) {
   try {
-    const res = await fetch(url, {
+    const fetchOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({ model, messages, temperature: 1, max_tokens: 4000 }),
-    });
+    };
+    if (proxyAgent && url.includes("openai.com")) {
+      fetchOptions.agent = proxyAgent;
+    }
+    const res = await fetch(url, fetchOptions);
     const data = await res.json();
     if (data.error) {
       if (attempt < 3 && (data.error.message?.includes("overloaded") || data.error.message?.includes("rate") || res.status === 429 || res.status === 503)) {
@@ -93,7 +103,7 @@ async function callLLM(url, key, model, messages, attempt = 0) {
     }
     return data.choices?.[0]?.message?.content || "";
   } catch (err) {
-    if (attempt < 3 && err.message?.includes("fetch failed")) {
+    if (attempt < 3 && (err.message?.includes("fetch failed") || err.message?.includes("ECONNRESET"))) {
       console.log(`  ⏳ Network retry ${attempt + 1}/3...`);
       await new Promise(r => setTimeout(r, 3000));
       return callLLM(url, key, model, messages, attempt + 1);
@@ -108,13 +118,12 @@ async function askAI(text, prompt) {
     { role: "user", content: prompt + "\n\n" + text },
   ];
   try {
-    const raw = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, messages);
+    const raw = await callLLM("https://api.openai.com/v1/chat/completions", OPENAI_KEY, "gpt-4o-mini", messages);
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     try {
       return JSON.parse(cleaned);
     } catch {
-      // Retry with stricter prompt if JSON invalid
-      const raw2 = await callLLM(KIMI_URL, KIMI_KEY, KIMI_MODEL, [
+      const raw2 = await callLLM("https://api.openai.com/v1/chat/completions", OPENAI_KEY, "gpt-4o-mini", [
         ...messages,
         { role: "assistant", content: cleaned },
         { role: "user", content: "Это невалидный JSON. Исправь и верни только валидный JSON." },
