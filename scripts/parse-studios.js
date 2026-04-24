@@ -6,6 +6,8 @@ import "dotenv/config";
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const DS_KEY = process.env.DEEPSEEK_API_KEY;
 const DS_URL = "https://api.deepseek.com/chat/completions";
+const QWEN_VL_KEY = process.env.QWEN_API_KEY;
+const QWEN_VL_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 const csvFile = fs.existsSync("all.csv") ? "all.csv" : "designer.csv";
 const csvLines = fs.readFileSync(csvFile, "utf-8").split("\n").filter(l => l.trim());
@@ -94,6 +96,43 @@ async function askAI(text, prompt) {
   } catch (err) {
     console.log(`  ⚠ AI: ${err.message}`);
     return null;
+  }
+}
+
+// --- Vision filter for images ---
+async function filterImagesWithVision(imageUrls) {
+  if (!QWEN_VL_KEY || imageUrls.length === 0) return imageUrls;
+  try {
+    const sample = imageUrls.slice(0, 5).map(url => ({
+      type: "image_url", image_url: { url }
+    }));
+    const res = await fetch(QWEN_VL_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${QWEN_VL_KEY}` },
+      body: JSON.stringify({
+        model: "qwen3-vl-flash",
+        messages: [{
+          role: "user",
+          content: [
+            ...sample,
+            { type: "text", text: `Для каждого изображения определи: это фото интерьера/архитектуры/дизайна помещения, или это мусор (лицо человека, баннер, логотип, реклама, текст). Верни JSON массив: [true, false, true, ...] где true = фото интерьера, false = мусор. Только JSON.` }
+          ]
+        }],
+        max_tokens: 200,
+      }),
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const flags = JSON.parse(cleaned);
+    if (!Array.isArray(flags)) return imageUrls;
+    // Keep images that passed vision check + all unchecked ones
+    const checked = imageUrls.slice(0, 5).filter((_, i) => flags[i] !== false);
+    const unchecked = imageUrls.slice(5);
+    return [...checked, ...unchecked];
+  } catch (err) {
+    console.log(`  ⚠ Vision: ${err.message}`);
+    return imageUrls;
   }
 }
 
@@ -207,10 +246,11 @@ async function processStudio(url, csvInn, forced = false) {
     if (!pInfo || pInfo.skip) continue;
     const imgs = pp.images.filter(u => /\.(jpg|jpeg|png|webp)/i.test(u));
     if (imgs.length === 0) continue;
+    const filteredImgs = await filterImagesWithVision(imgs);
     projects.push({
       title: pInfo.title || `Проект ${projects.length + 1}`,
       description: pInfo.description || null,
-      imageUrls: imgs.slice(0, 15),
+      imageUrls: filteredImgs.slice(0, 15),
       year: pInfo.year ? String(pInfo.year) : null,
       objectType: pInfo.objectType || null,
     });
