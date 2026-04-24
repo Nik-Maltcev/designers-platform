@@ -31,9 +31,9 @@ async function getPage(url, timeout = 15000) {
   const page = await ctx.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1000);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(800);
     const text = await page.evaluate(() => document.body?.innerText?.slice(0, 8000) || "");
     const images = await page.evaluate(() => {
       return [...document.querySelectorAll("img, [style*='background-image']")]
@@ -112,10 +112,13 @@ async function findPortfolioUrl(baseUrl, mainLinks) {
   const result = await askAI(linksText, `Это ссылки из меню сайта дизайн-студии ${baseUrl}. Найди ссылку на раздел с портфолио/проектами/работами. Верни JSON: {"url":"ссылка на портфолио или null"}`);
   if (result?.url) return result.url;
 
-  // 3. Try common paths by fetching
-  for (const path of commonPaths) {
+  // 3. Try common paths by fetching (only top 3, short timeout)
+  for (const path of commonPaths.slice(0, 3)) {
     try {
-      const res = await fetch(base + path, { method: "HEAD", redirect: "follow" });
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch(base + path, { method: "HEAD", redirect: "follow", signal: ctrl.signal });
+      clearTimeout(t);
       if (res.ok) return base + path;
     } catch {}
   }
@@ -127,16 +130,16 @@ async function getLinksFromPage(url) {
   const page = await ctx.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1000);
     // Scroll to load lazy content
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-      await page.waitForTimeout(800);
+      await page.waitForTimeout(500);
     }
     // Click tabs/filters
     const tabs = await page.$$('[role="tab"], .tabs button, .filter-btn, .category-btn');
-    for (const tab of tabs.slice(0, 6)) {
-      try { await tab.click(); await page.waitForTimeout(1000); } catch {}
+    for (const tab of tabs.slice(0, 4)) {
+      try { await tab.click(); await page.waitForTimeout(500); } catch {}
     }
     const links = await page.evaluate((baseHost) => {
       return [...document.querySelectorAll("a[href]")]
@@ -151,7 +154,7 @@ async function getLinksFromPage(url) {
 }
 
 // --- Main studio processor ---
-async function processStudio(url, csvInn) {
+async function processStudio(url, csvInn, forced = false) {
   const normalized = normalizeUrl(url);
   console.log(`→ ${normalized}${csvInn ? ` (ИНН: ${csvInn})` : ""}`);
 
@@ -176,7 +179,7 @@ async function processStudio(url, csvInn) {
     // If few links — might be categories, go one level deeper
     if (projectLinks.length > 0 && projectLinks.length <= 10) {
       let deepLinks = [];
-      for (const catUrl of projectLinks.slice(0, 8)) {
+      for (const catUrl of projectLinks.slice(0, 4)) {
         const sub = await getLinksFromPage(catUrl);
         if (sub.length > 2) {
           console.log(`    ↳ ${sub.length} из ${new URL(catUrl).pathname}`);
@@ -186,6 +189,10 @@ async function processStudio(url, csvInn) {
       if (deepLinks.length > projectLinks.length) projectLinks = deepLinks;
     }
     console.log(`  📂 Ссылок на проекты: ${projectLinks.length}`);
+    if (!forced && projectLinks.length > 20) {
+      console.log(`  ⏭ Отложена (${projectLinks.length} проектов) — вернёмся позже`);
+      return "deferred";
+    }
   } else {
     console.log(`  ⚠ Портфолио не найдено`);
   }
@@ -193,7 +200,7 @@ async function processStudio(url, csvInn) {
   // Parse projects
   const projects = [];
   for (const link of projectLinks) {
-    const pp = await getPage(link, 10000);
+    const pp = await getPage(link, 8000);
     if (!pp) continue;
     const pInfo = await askAI(pp.text.slice(0, 3000),
       `Страница проекта дизайн-студии. Верни JSON: {"title":"Название проекта","description":"1-2 предложения","year":"год или null","objectType":"тип или null","skip":false}. Если это НЕ страница конкретного проекта (а блог, услуги, категория, контакты) — {"skip":true}`);
@@ -215,7 +222,7 @@ async function processStudio(url, csvInn) {
   if (!inn) {
     const paths = ["/contacts", "/kontakty", "/about", "/rekvizity", "/policy"];
     for (const path of paths) {
-      const p = await getPage(normalized.replace(/\/+$/, "") + path, 10000);
+      const p = await getPage(normalized.replace(/\/+$/, "") + path, 5000);
       if (!p) continue;
       const m = p.text.match(/ИНН[:\s]*(\d{10,12})/i);
       if (m) { inn = m[1]; console.log(`  📋 ИНН: ${inn}`); break; }
@@ -247,14 +254,25 @@ async function main() {
   const limit = parseInt(process.env.PARSE_LIMIT) || entries.length;
   const toProcess = entries.slice(0, limit);
   console.log(`\nПарсинг ${toProcess.length} из ${entries.length} студий из ${csvFile}...\n`);
+  const deferred = [];
   for (let i = 0; i < toProcess.length; i++) {
-    try { await processStudio(toProcess[i].url, toProcess[i].inn); }
+    try { 
+      const result = await processStudio(toProcess[i].url, toProcess[i].inn);
+      if (result === "deferred") deferred.push(toProcess[i]);
+    }
     catch (err) { console.log(`  💥 ${err.message}`); }
-    if ((i + 1) % 14 === 0) {
-      console.log("\n⏳ Пауза 30 сек...\n");
-      await new Promise(r => setTimeout(r, 30000));
+  }
+  if (deferred.length > 0) {
+    console.log(`\n🔄 Возвращаемся к ${deferred.length} тяжёлым студиям...\n`);
+    for (const entry of deferred) {
+      try { await processStudio(entry.url, entry.inn, true); }
+      catch (err) { console.log(`  💥 ${err.message}`); }
     }
   }
+  await browser.close();
+  console.log("\n✅ Готово!");
+  await prisma.$disconnect();
+}
   await browser.close();
   console.log("\n✅ Готово!");
   await prisma.$disconnect();
