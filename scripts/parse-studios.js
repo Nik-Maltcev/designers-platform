@@ -290,7 +290,7 @@ async function processStudio(url, csvInn, forced = false) {
 }
 
 async function main() {
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, args: ["--disable-dev-shm-usage", "--no-sandbox"] });
   const limit = parseInt(process.env.PARSE_LIMIT) || entries.length;
   const toProcess = entries.slice(0, limit);
   console.log(`\nПарсинг ${toProcess.length} из ${entries.length} студий из ${csvFile}...\n`);
@@ -300,13 +300,28 @@ async function main() {
       const result = await processStudio(toProcess[i].url, toProcess[i].inn);
       if (result === "deferred") deferred.push(toProcess[i]);
     }
-    catch (err) { console.log(`  💥 ${err.message}`); }
+    catch (err) {
+      console.log(`  💥 ${err.message}`);
+      // Restart browser if crashed
+      if (err.message?.includes("closed") || err.message?.includes("crashed")) {
+        console.log("  🔄 Перезапуск браузера...");
+        try { await browser.close(); } catch {}
+        browser = await chromium.launch({ headless: true, args: ["--disable-dev-shm-usage", "--no-sandbox"] });
+      }
+    }
   }
   if (deferred.length > 0) {
     console.log(`\n🔄 Возвращаемся к ${deferred.length} тяжёлым студиям...\n`);
     for (const entry of deferred) {
       try { await processStudio(entry.url, entry.inn, true); }
-      catch (err) { console.log(`  💥 ${err.message}`); }
+      catch (err) {
+        console.log(`  💥 ${err.message}`);
+        if (err.message?.includes("closed") || err.message?.includes("crashed")) {
+          console.log("  🔄 Перезапуск браузера...");
+          try { await browser.close(); } catch {}
+          browser = await chromium.launch({ headless: true, args: ["--disable-dev-shm-usage", "--no-sandbox"] });
+        }
+      }
     }
   }
   await browser.close();
