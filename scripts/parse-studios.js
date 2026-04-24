@@ -273,9 +273,5 @@ async function main() {
   console.log("\n✅ Готово!");
   await prisma.$disconnect();
 }
-  await browser.close();
-  console.log("\n✅ Готово!");
-  await prisma.$disconnect();
-}
 
 main().catch(console.error);
