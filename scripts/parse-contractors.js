@@ -165,13 +165,50 @@ async function processContractor(entry) {
   const existing = await prisma.company.findFirst({where:{inn}});
   if (existing) { console.log(`  ✓ exists: ${existing.name}`); return; }
 
+  // No website — create from INN, enrich + reviews
+  if (!url) {
+    const baseSlug = `company-${inn}`;
+    let slug = baseSlug;
+    if (await prisma.company.findUnique({where:{slug}})) slug = baseSlug+"-"+Date.now().toString(36);
+    try {
+      const company = await prisma.company.create({
+        data: { name: `Компания ${inn}`, slug, inn, type: "contractor", categories: [], objectTypes: [], regions: [], materials: [], source: "parser" },
+      });
+      console.log(`  ✓ Создана (без сайта)`);
+
+      // Enrich
+      const enrichData = await enrichCompany(inn);
+      if (enrichData.fullName) name = enrichData.fullName;
+      if (enrichData.revenue) enrichData.revenue = String(enrichData.revenue);
+      if (enrichData.profit) enrichData.profit = String(enrichData.profit);
+      await prisma.company.update({ where:{id:company.id}, data:{
+        name: enrichData.fullName || `Компания ${inn}`,
+        address: enrichData.address || null,
+        revenue: enrichData.revenue||null,
+        employees: enrichData.employees||null,
+        ogrn: enrichData.ogrn||null,
+      }});
+
+      // Reviews
+      const reviewName = enrichData.fullName || `Компания ${inn}`;
+      const reviews = await collectReviews(reviewName);
+      if (reviews?.summary) {
+        console.log(`  📝 ${reviews.tone}: ${reviews.summary?.slice(0,100)}`);
+        try {
+          await prisma.companyReviewSummary.create({
+            data: { companyId: company.id, summary: reviews.summary||null, tone: reviews.tone||null, avgRating: reviews.avgRating||null, sources: reviews.sources||null },
+          });
+        } catch (revErr) { console.log(`  ⚠ Reviews DB: ${revErr.message}`); }
+      }
+    } catch (err) { console.log(`  ✗ DB: ${err.message}`); }
+    return;
+  }
   let name = `Компания ${inn}`, description = null, city = null, type = "contractor";
   let categories = [], objectTypes = [], segment = null, logoUrl = null;
   let projects = [];
 
-  if (url) {
-    const main = await getPage(url);
-    if (main) {
+  const main = await getPage(url);
+  if (main) {
       const info = await askAI(main.text, `Сайт компании. URL: ${url}. JSON: {"name":"Название","description":"Описание","city":"Город","type":"contractor/supplier","categories":["Мебель"],"segment":"premium/medium-plus/medium","isShop":true если это интернет-магазин мебели/каталог товаров, false если производство/студия с проектами}`);
       if (info?.name) { name=info.name; description=info.description; city=info.city; type=info.isShop?"supplier":(info.type==="supplier"?"supplier":"contractor"); categories=info.categories||[]; segment=info.segment; }
 
@@ -198,7 +235,6 @@ async function processContractor(entry) {
       }
       }
     } else { console.log("  ⚠ Сайт недоступен"); }
-  }
 
   // Save company
   const baseSlug = slugify(name) || `company-${inn}`;
