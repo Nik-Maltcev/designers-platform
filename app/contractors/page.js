@@ -8,23 +8,22 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-const PER_PAGE = 20;
+const DEFAULT_PER_PAGE = 10;
+const PER_PAGE_OPTIONS = [10, 50, 100];
 
 export default async function ContractorsPage({ searchParams }) {
   const params = await searchParams;
+  const perPage = PER_PAGE_OPTIONS.includes(parseInt(params?.perPage)) ? parseInt(params.perPage) : DEFAULT_PER_PAGE;
   const page = Math.max(1, parseInt(params?.page) || 1);
   const search = params?.q || "";
   const segment = params?.segment || "";
   const city = params?.city || "";
   const sort = params?.sort || "newest";
-  const skip = (page - 1) * PER_PAGE;
+  const skip = (page - 1) * perPage;
 
   const where = {
-    role: "contractor",
-    profileFilled: true,
     ...(search && {
       OR: [
-        { companyName: { contains: search, mode: "insensitive" } },
         { name: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
       ],
@@ -33,17 +32,17 @@ export default async function ContractorsPage({ searchParams }) {
     ...(city && { city }),
   };
 
-  const orderBy = sort === "name" ? { companyName: "asc" } : { createdAt: "desc" };
+  const orderBy = sort === "name" ? { name: "asc" } : { createdAt: "desc" };
 
-  const [contractors, total] = await Promise.all([
-    prisma.user.findMany({ where, orderBy, skip, take: PER_PAGE }),
-    prisma.user.count({ where }),
+  const [companies, total] = await Promise.all([
+    prisma.company.findMany({ where, orderBy, skip, take: perPage, include: { projects: { take: 1 } } }),
+    prisma.company.count({ where }),
   ]);
 
-  const totalPages = Math.ceil(total / PER_PAGE);
+  const totalPages = Math.ceil(total / perPage);
 
   function buildUrl(overrides) {
-    const p = { page: String(page), q: search, segment, city, sort, ...overrides };
+    const p = { page: "1", q: search, segment, city, sort, perPage: String(perPage), ...overrides };
     const qs = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
     return `/contractors?${qs}`;
   }
@@ -56,7 +55,6 @@ export default async function ContractorsPage({ searchParams }) {
           <p className="text-on-surface-variant">{total > 0 ? `${total} компаний` : "Каталог пока пуст"}</p>
         </header>
 
-        {/* Search + Filters */}
         <form className="mb-8 space-y-4">
           <div className="relative max-w-2xl">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
@@ -65,9 +63,9 @@ export default async function ContractorsPage({ searchParams }) {
           <div className="flex flex-wrap gap-3">
             <select name="segment" defaultValue={segment} className="bg-surface-container-low border-none rounded-lg px-4 py-2 text-sm">
               <option value="">Все сегменты</option>
-              <option value="Средний">Средний</option>
-              <option value="Средний+">Средний+</option>
-              <option value="Премиум">Премиум</option>
+              <option value="medium">Средний</option>
+              <option value="medium-plus">Средний+</option>
+              <option value="premium">Премиум</option>
             </select>
             <select name="city" defaultValue={city} className="bg-surface-container-low border-none rounded-lg px-4 py-2 text-sm">
               <option value="">Все города</option>
@@ -83,54 +81,94 @@ export default async function ContractorsPage({ searchParams }) {
           </div>
         </form>
 
-        {/* Results */}
-        <div className="grid grid-cols-1 gap-8">
-          {contractors.map((c) => (
-            <article key={c.id} className="bg-surface-container-lowest rounded-xl p-8 hover:bg-surface-container-low transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <h2 className="text-2xl font-extrabold font-headline">{c.companyName || c.name}</h2>
-                {c.verified && (
-                  <span className="bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[12px]" style={{fontVariationSettings: "'FILL' 1"}}>verified</span> Проверен
-                  </span>
-                )}
-              </div>
-              {c.description && <p className="text-sm text-on-surface-variant mb-4 line-clamp-2">{c.description}</p>}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                {c.city && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Регион</p><p className="text-sm font-semibold">{c.city}</p></div>}
-                {c.segment && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Сегмент</p><p className="text-sm font-semibold">{c.segment}</p></div>}
-                {(c.hasProduction || c.hasInstallation) && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Возможности</p><p className="text-sm font-semibold">{[c.hasProduction && "Производство", c.hasInstallation && "Монтаж"].filter(Boolean).join(", ")}</p></div>}
-                {c.minBudget && <div><p className="text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Мин. чек</p><p className="text-sm font-semibold">{c.minBudget}</p></div>}
-              </div>
-              {c.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {c.categories.map((cat) => (<span key={cat} className="bg-surface-container px-2.5 py-1 rounded-full text-xs font-medium">{cat}</span>))}
+        <div className="grid grid-cols-1 gap-4">
+          {companies.map((c) => (
+            <article key={c.id} className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-lg transition-all group">
+              <div className="flex">
+                <div className="w-40 flex-shrink-0 bg-slate-100 relative overflow-hidden self-stretch">
+                  {c.logoUrl ? (
+                    <img className="w-full h-full object-cover" alt={c.name} src={c.logoUrl} referrerPolicy="no-referrer" loading="lazy" />
+                  ) : c.projects[0]?.imageUrls[0] ? (
+                    <img className="w-full h-full object-cover" alt={c.name} src={c.projects[0].imageUrls[0]} referrerPolicy="no-referrer" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center min-h-[180px]">
+                      <span className="material-symbols-outlined text-4xl text-slate-300">factory</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="mt-4">
-                <Link href={`/contractor/${c.id}`} className="bg-surface-container-high text-primary text-xs font-bold px-4 py-2.5 rounded-md hover:bg-surface-container-highest transition-colors">Открыть профиль</Link>
+                <div className="flex-1 p-4 flex flex-col min-w-0">
+                  <h2 className="font-headline text-lg font-bold text-on-surface mb-1.5 truncate">{c.name}</h2>
+                  <div className="flex gap-1.5 flex-wrap mb-3">
+                    {c.verified && <span className="bg-primary text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">Проверен</span>}
+                    {c.type && <span className="bg-slate-700 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">{c.type === "supplier" ? "Поставщик" : "Подрядчик"}</span>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 text-[11px]">
+                    {c.categories.length > 0 && (
+                      <div>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Категории</p>
+                        <p className="font-semibold text-on-surface text-xs">{c.categories.slice(0, 3).join(", ")}</p>
+                      </div>
+                    )}
+                    {c.segment && (
+                      <div>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Сегмент</p>
+                        <p className="font-semibold text-on-surface text-xs">{c.segment === "premium" ? "Премиум" : c.segment === "medium-plus" ? "Средний+" : "Средний"}</p>
+                      </div>
+                    )}
+                    {c.city && (
+                      <div>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Город</p>
+                        <p className="font-semibold text-on-surface text-xs">{c.city}</p>
+                      </div>
+                    )}
+                    {c.website && (
+                      <div>
+                        <p className="uppercase font-bold text-slate-400 tracking-wider">Сайт</p>
+                        <a href={c.website} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary text-xs hover:underline">{c.website.replace(/https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>
+                      </div>
+                    )}
+                  </div>
+                  {c.description && <p className="text-xs text-on-surface-variant line-clamp-2 mb-3">{c.description}</p>}
+                  <div className="mt-auto flex gap-2">
+                    <Link href={`/company/${c.slug}`} className="hero-gradient text-white text-xs font-bold px-4 py-2 rounded transition-all hover:opacity-90">Профиль</Link>
+                  </div>
+                </div>
               </div>
             </article>
           ))}
-          {contractors.length === 0 && (
+          {companies.length === 0 && (
             <div className="text-center py-20">
-              <span className="material-symbols-outlined text-6xl text-outline mb-4">engineering</span>
-              <p className="text-on-surface-variant text-lg mb-4">{search ? "Ничего не найдено" : "Пока нет подрядчиков"}</p>
-              <Link href="/login" className="inline-block hero-gradient text-on-primary px-8 py-3 rounded-lg font-bold">Зарегистрироваться</Link>
+              <span className="material-symbols-outlined text-6xl text-outline mb-4">factory</span>
+              <p className="text-on-surface-variant text-lg">{search ? "Ничего не найдено" : "Пока нет подрядчиков"}</p>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-between border-t border-outline-variant pt-8">
-            <span className="text-xs font-bold text-outline tracking-widest uppercase">Показано {skip + 1}-{Math.min(skip + PER_PAGE, total)} из {total}</span>
-            <div className="flex gap-2">
-              {page > 1 && <Link href={buildUrl({ page: String(page - 1) })} className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-bold">← Назад</Link>}
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map((p) => (
-                <Link key={p} href={buildUrl({ page: String(p) })} className={`px-3 py-2 rounded-lg text-sm font-bold ${p === page ? "bg-primary text-on-primary" : "bg-surface-container-high"}`}>{p}</Link>
+          <div className="mt-12 pt-8 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">{skip + 1}-{Math.min(skip + perPage, total)} из {total}</span>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-xs text-slate-400">Показывать:</span>
+                {PER_PAGE_OPTIONS.map((opt) => (
+                  <Link key={opt} href={buildUrl({ perPage: String(opt), page: "1" })}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-all ${perPage === opt ? "bg-primary text-white" : "bg-slate-100 text-on-surface-variant hover:bg-slate-200"}`}>
+                    {opt}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-1">
+              {page > 1 && <Link href={buildUrl({ page: String(page - 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100"><span className="material-symbols-outlined text-lg">arrow_back</span></Link>}
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                if (totalPages <= 7) return i + 1;
+                if (page <= 4) return i + 1;
+                if (page >= totalPages - 3) return totalPages - 6 + i;
+                return page - 3 + i;
+              }).map((p) => (
+                <Link key={p} href={buildUrl({ page: String(p) })} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium ${p === page ? "bg-primary text-white" : "hover:bg-slate-100"}`}>{p}</Link>
               ))}
-              {page < totalPages && <Link href={buildUrl({ page: String(page + 1) })} className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-bold">Далее →</Link>}
+              {page < totalPages && <Link href={buildUrl({ page: String(page + 1) })} className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100"><span className="material-symbols-outlined text-lg">arrow_forward</span></Link>}
             </div>
           </div>
         )}
