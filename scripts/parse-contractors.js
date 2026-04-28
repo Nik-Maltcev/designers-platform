@@ -172,11 +172,16 @@ async function processContractor(entry) {
   if (url) {
     const main = await getPage(url);
     if (main) {
-      const info = await askAI(main.text, `Сайт компании. URL: ${url}. JSON: {"name":"Название","description":"Описание","city":"Город","type":"contractor/supplier","categories":["Мебель"],"segment":"premium/medium-plus/medium"}`);
-      if (info?.name) { name=info.name; description=info.description; city=info.city; type=info.type==="supplier"?"supplier":"contractor"; categories=info.categories||[]; segment=info.segment; }
-      logoUrl = main.images[0] || null;
+      const info = await askAI(main.text, `Сайт компании. URL: ${url}. JSON: {"name":"Название","description":"Описание","city":"Город","type":"contractor/supplier","categories":["Мебель"],"segment":"premium/medium-plus/medium","isShop":true если это интернет-магазин мебели/каталог товаров, false если производство/студия с проектами}`);
+      if (info?.name) { name=info.name; description=info.description; city=info.city; type=info.isShop?"supplier":(info.type==="supplier"?"supplier":"contractor"); categories=info.categories||[]; segment=info.segment; }
 
-      // Portfolio
+      // For furniture shops: no photos at all (no logo, no projects)
+      // For other companies: grab logo and portfolio
+      if (info?.isShop) {
+        console.log("  🛒 Интернет-магазин мебели — пропускаем фото и проекты");
+        logoUrl = null;
+      } else {
+      logoUrl = main.images[0] || null;
       const pUrl = await findPortfolioUrl(url, main.links);
       if (pUrl) {
         let pLinks = await getLinksFromPage(pUrl);
@@ -190,6 +195,7 @@ async function processContractor(entry) {
           if (imgs.length===0) continue;
           projects.push({ title:pi.title||`Проект ${projects.length+1}`, description:pi.description||null, imageUrls:imgs.slice(0,5) });
         }
+      }
       }
     } else { console.log("  ⚠ Сайт недоступен"); }
   }
@@ -216,7 +222,20 @@ async function processContractor(entry) {
 
     // Reviews
     const reviews = await collectReviews(name);
-    if (reviews?.summary) console.log(`  📝 ${reviews.tone}: ${reviews.summary?.slice(0,100)}`);
+    if (reviews?.summary) {
+      console.log(`  📝 ${reviews.tone}: ${reviews.summary?.slice(0,100)}`);
+      try {
+        await prisma.companyReviewSummary.create({
+          data: {
+            companyId: company.id,
+            summary: reviews.summary || null,
+            tone: reviews.tone || null,
+            avgRating: reviews.avgRating || null,
+            sources: reviews.sources || null,
+          },
+        });
+      } catch (revErr) { console.log(`  ⚠ Reviews DB: ${revErr.message}`); }
+    }
 
   } catch(err) { console.log(`  ✗ DB: ${err.message}`); }
 }

@@ -15,7 +15,7 @@ export default async function CompanyPage({ params }) {
   const { slug } = await params;
   const company = await prisma.company.findUnique({
     where: { slug },
-    include: { projects: true },
+    include: { projects: true, reviewSummary: true },
   });
 
   if (!company) notFound();
@@ -74,6 +74,40 @@ export default async function CompanyPage({ params }) {
           )}
         </div>
       </div>
+
+      {company.reviewSummary && company.reviewSummary.summary && (
+        <section className="mb-16">
+          <h2 className="text-2xl font-extrabold tracking-tight font-headline mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>reviews</span>
+            Отзывы
+          </h2>
+          <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="flex items-center gap-4 mb-4">
+              {company.reviewSummary.avgRating && (
+                <div className="flex items-center gap-1">
+                  <span className="text-3xl font-extrabold text-primary">{company.reviewSummary.avgRating.toFixed(1)}</span>
+                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>star</span>
+                </div>
+              )}
+              {company.reviewSummary.tone && (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${company.reviewSummary.tone === "positive" ? "bg-green-100 text-green-800" : company.reviewSummary.tone === "negative" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}>
+                  {company.reviewSummary.tone === "positive" ? "Положительные" : company.reviewSummary.tone === "negative" ? "Отрицательные" : "Смешанные"}
+                </span>
+              )}
+            </div>
+            <p className="text-on-surface-variant leading-relaxed">{company.reviewSummary.summary}</p>
+            {company.reviewSummary.sources && Array.isArray(company.reviewSummary.sources) && company.reviewSummary.sources.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {company.reviewSummary.sources.map((s, i) => (
+                  <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline bg-primary-fixed/30 px-2 py-1 rounded">
+                    {s.platform}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {company.projects.length > 0 && (
         <section className="mb-20">

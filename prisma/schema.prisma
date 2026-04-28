@@ -246,6 +246,7 @@ model Company {
   proposals     Proposal[]
   complaints    Complaint[]
   projects      Project[]
+  reviewSummary CompanyReviewSummary?
 
   @@index([type])
   @@index([city])
@@ -319,6 +320,22 @@ model ReviewSummary {
   summary         String?
   tone            String?   // "positive" | "mixed" | "negative"
   sources         Json?     // [{platform, url, rating, reviewCount, icon}]
+  reviews         Json?     // [{author, text, rating, date, platform}]
+  rawSearchResults Json?
+  fetchedAt       DateTime @default(now())
+}
+
+model CompanyReviewSummary {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  avgRating       Float?
+  totalReviews    Int      @default(0)
+  positives       String[]
+  negatives       String[]
+  summary         String?
+  tone            String?   // "positive" | "mixed" | "negative"
+  sources         Json?     // [{platform, url, rating, reviewCount}]
   reviews         Json?     // [{author, text, rating, date, platform}]
   rawSearchResults Json?
   fetchedAt       DateTime @default(now())
