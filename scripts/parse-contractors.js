@@ -11,16 +11,18 @@ const DS_URL = "https://api.deepseek.com/chat/completions";
 const lines = fs.readFileSync("mebel - mebel.csv", "utf-8").split("\n").filter(l => l.trim());
 const entries = lines.slice(1) // skip header
   .map(l => {
-    const match = l.match(/^(\d{10,12})\s*,\s*(.+)/);
+    const match = l.match(/^(\d{10,12})\s*,?\s*(.*)/);
     if (!match) return null;
     const inn = match[1];
-    // Take first URL if multiple
-    let url = match[2].replace(/["\s]/g, "").split(";")[0].trim();
-    if (!url.startsWith("http")) url = "https://" + url;
-    return { inn, url };
+    let url = (match[2] || "").replace(/["\s]/g, "").split(";")[0].trim();
+    if (url && !url.startsWith("http")) url = "https://" + url;
+    return { inn, url: url || null };
   })
-  .filter(Boolean)
+  .filter(e => e?.inn)
   .filter((e, i, a) => a.findIndex(x => x.inn === e.inn) === i);
+
+// Sort: entries without URL first (fast), then with URL
+entries.sort((a, b) => (a.url ? 1 : 0) - (b.url ? 1 : 0));
 
 function slugify(name) {
   const tr = {"а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"yo","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch","ш":"sh","щ":"sch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"};
@@ -120,14 +122,36 @@ async function getLinksFromPage(url) {
 
 async function processContractor(entry) {
   const { inn, url } = entry;
-  console.log(`→ ${url} (ИНН: ${inn})`);
+  console.log(`→ ${url || "без сайта"} (ИНН: ${inn})`);
 
   // Check existing
-  const existing = await prisma.company.findFirst({ where: { OR: [{ inn }, { website: url }] } });
+  const existing = await prisma.company.findFirst({ where: { inn } });
   if (existing) { console.log(`  ✓ exists: ${existing.name}`); return; }
 
+  // No website — create from INN only
+  if (!url) {
+    const slug = `company-${inn}`;
+    try {
+      await prisma.company.create({
+        data: { name: `Компания ${inn}`, slug, inn, type: "contractor", categories: [], objectTypes: [], regions: [], materials: [], source: "parser" },
+      });
+      console.log(`  ✓ Создана (без сайта)`);
+    } catch (err) { console.log(`  ✗ DB: ${err.message}`); }
+    return;
+  }
+
   const main = await getPage(url);
-  if (!main) { console.log(`  ✗ failed to load`); return; }
+  if (!main) {
+    // Site failed — still create entry
+    const slug = slugify(url.replace(/https?:\/\/(www\.)?/, "").replace(/\/.*/, "")) || `company-${inn}`;
+    try {
+      await prisma.company.create({
+        data: { name: url.replace(/https?:\/\/(www\.)?/, "").replace(/\/.*/, ""), slug, inn, website: url, type: "contractor", categories: [], objectTypes: [], regions: [], materials: [], source: "parser" },
+      });
+      console.log(`  ✓ Создана (сайт недоступен)`);
+    } catch (err) { console.log(`  ✗ DB: ${err.message}`); }
+    return;
+  }
 
   // Company info
   const info = await askAI(main.text, `Сайт мебельной компании/подрядчика. URL: ${url}. Верни JSON: {"name":"Название","description":"Описание 2-3 предложения","city":"Город","type":"contractor или supplier","categories":["Мебель","Кухни"],"objectTypes":["Квартиры","Дома"],"segment":"premium/medium-plus/medium"}`);
@@ -166,7 +190,7 @@ async function processContractor(entry) {
       projects.push({
         title: pInfo.title || `Проект ${projects.length + 1}`,
         description: pInfo.description || null,
-        imageUrls: imgs.slice(0, 15),
+        imageUrls: imgs.slice(0, 5),
       });
       await new Promise(r => setTimeout(r, 200));
     }
