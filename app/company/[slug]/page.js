@@ -382,38 +382,136 @@ export default async function CompanyPage({ params }) {
         );
       })()}
 
-      {company.reviewSummary && company.reviewSummary.summary && (
-        <section className="mb-16">
-          <h2 className="text-2xl font-extrabold tracking-tight font-headline mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>reviews</span>
-            Отзывы
-          </h2>
-          <div className="bg-surface-container-lowest p-8 rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              {company.reviewSummary.avgRating && (
-                <div className="flex items-center gap-1">
-                  <span className="text-3xl font-extrabold text-primary">{company.reviewSummary.avgRating.toFixed(1)}</span>
-                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>star</span>
+      {company.reviewSummary && (company.reviewSummary.summary || (Array.isArray(company.reviewSummary.sources) && company.reviewSummary.sources.length > 0)) && (
+        <div className="bg-surface-container-lowest p-8 rounded-xl mb-16 border border-outline-variant/15">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold font-headline flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">reviews</span>
+              Отзывы
+            </h3>
+            {company.reviewSummary.avgRating && (
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-extrabold text-on-surface">{company.reviewSummary.avgRating.toFixed(1)}</span>
+                <div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star} className="material-symbols-outlined text-lg"
+                        style={{ fontVariationSettings: "'FILL' 1", color: star <= Math.round(company.reviewSummary.avgRating) ? "#f59e0b" : "#d1d5db" }}>
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-outline">{company.reviewSummary.totalReviews} отзывов</p>
                 </div>
-              )}
-              {company.reviewSummary.tone && (
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${company.reviewSummary.tone === "positive" ? "bg-green-100 text-green-800" : company.reviewSummary.tone === "negative" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}>
-                  {company.reviewSummary.tone === "positive" ? "Положительные" : company.reviewSummary.tone === "negative" ? "Отрицательные" : "Смешанные"}
-                </span>
-              )}
-            </div>
-            <p className="text-on-surface-variant leading-relaxed">{company.reviewSummary.summary}</p>
-            {company.reviewSummary.sources && Array.isArray(company.reviewSummary.sources) && company.reviewSummary.sources.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {company.reviewSummary.sources.map((s, i) => (
-                  <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline bg-primary-fixed/30 px-2 py-1 rounded">
-                    {s.platform}
-                  </a>
-                ))}
               </div>
             )}
           </div>
-        </section>
+
+          {company.reviewSummary.summary && (
+            <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">{company.reviewSummary.summary}</p>
+          )}
+
+          {(company.reviewSummary.positives?.length > 0 || company.reviewSummary.negatives?.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {company.reviewSummary.positives?.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase font-bold text-teal-600 tracking-wider mb-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_up</span>
+                    Плюсы
+                  </p>
+                  <ul className="space-y-1.5">
+                    {company.reviewSummary.positives.map((p, i) => (
+                      <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                        <span className="text-teal-500 mt-0.5">+</span> {p}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {company.reviewSummary.negatives?.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase font-bold text-amber-600 tracking-wider mb-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>thumb_down</span>
+                    Минусы
+                  </p>
+                  <ul className="space-y-1.5">
+                    {company.reviewSummary.negatives.map((n, i) => (
+                      <li key={i} className="text-sm text-on-surface flex items-start gap-2">
+                        <span className="text-amber-500 mt-0.5">−</span> {n}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {Array.isArray(company.reviewSummary.sources) && company.reviewSummary.sources.length > 0 && (
+            <>
+              <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-3">Площадки с отзывами</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {company.reviewSummary.sources.map((source, i) => (
+                  <a key={i} href={source.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-surface rounded-lg border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group">
+                    <span className="text-xl">{source.icon || "⭐"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{source.platform}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {source.rating && (
+                          <span className="text-xs font-bold text-amber-600 flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                            {source.rating}
+                          </span>
+                        )}
+                        {source.reviewCount && (
+                          <span className="text-xs text-outline">{source.reviewCount} отзывов</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm transition-colors">open_in_new</span>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+
+          {Array.isArray(company.reviewSummary.reviews) && company.reviewSummary.reviews.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-4">Тексты отзывов</h4>
+              <div className="space-y-3">
+                {company.reviewSummary.reviews.map((review, i) => (
+                  <div key={i} className="p-4 bg-surface rounded-lg border border-outline-variant/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                        <span className="text-sm font-semibold text-on-surface">{review.author || "Аноним"}</span>
+                        {review.platform && (
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{review.platform}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {review.rating && (
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star} className="material-symbols-outlined text-xs"
+                                style={{ fontVariationSettings: "'FILL' 1", color: star <= review.rating ? "#f59e0b" : "#d1d5db" }}>
+                                star
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {review.date && <span className="text-[10px] text-outline">{review.date}</span>}
+                      </div>
+                    </div>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">{review.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[10px] text-outline mt-4">Данные собраны {company.reviewSummary.fetchedAt ? new Date(company.reviewSummary.fetchedAt).toLocaleDateString("ru-RU") : "—"} из открытых источников</p>
+        </div>
       )}
 
       {company.projects.length > 0 && (

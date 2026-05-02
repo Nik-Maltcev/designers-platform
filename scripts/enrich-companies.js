@@ -66,14 +66,7 @@ async function enrichDataNewton(inn) {
   console.log(`  ${ogrn ? "✓" : "—"} counterparty (ОГРН: ${ogrn || "—"})`);
   await sleep(400);
 
-  // 2. Финансы (GET)
-  const fin = await dnGet("/v1/finance", `&inn=${inn}`);
-  if (allKeysExhausted) return null;
-  allData.finance = fin;
-  console.log(`  ${fin?.data ? "✓" : "—"} finance`);
-  await sleep(400);
-
-  // 3. Арбитражные дела (GET)
+  // 2. Арбитражные дела (GET)
   const arb = await dnGet("/v1/arbitration-cases", `&inn=${inn}&limit=50&offset=0`);
   if (allKeysExhausted) return null;
   allData.arbitration = arb;
@@ -117,14 +110,7 @@ async function enrichDataNewton(inn) {
   console.log(`  ${govStat?.data ? "✓" : "—"} govContractsStat`);
   await sleep(400);
 
-  // Парсим финансы
-  const finData = fin?.data || {};
-  const finReports = Array.isArray(finData) ? finData : finData?.reports || [];
-  const latestFin = Array.isArray(finReports) && finReports.length > 0 ? finReports[0] : null;
-  const revenue = latestFin?.revenue ?? latestFin?.["2110"] ?? null;
-  const profit = latestFin?.net_profit ?? latestFin?.["2400"] ?? null;
-
-  console.log(`  📊 Выручка: ${revenue || "—"} | Арбитраж: ${arbData.length} | Госконтракты: ${govData.length}`);
+  console.log(`  📊 Арбитраж: ${arbData.length} | Госконтракты: ${govData.length}`);
 
   return {
     ogrn: ogrn || null,
@@ -135,8 +121,6 @@ async function enrichDataNewton(inn) {
     employees: cpData.employees_count ?? null,
     foundedYear: cpData.registration_date ? parseInt(String(cpData.registration_date).slice(0, 4)) : null,
     status: cpData.active === true ? "Действует" : cpData.active === false ? "Не действует" : null,
-    revenue: revenue != null ? String(revenue) : null,
-    profit: profit != null ? String(profit) : null,
     courtCasesCount: arbData.length,
     courtCases: arbData.length > 0 ? arbData.slice(0, 20) : null,
     contractsCount: govData.length,
@@ -163,8 +147,6 @@ async function processCompany(comp) {
         employees: dn?.employees ?? comp.employees ?? null,
         foundedYear: dn?.foundedYear ?? comp.foundedYear ?? null,
         status: dn?.status || comp.status || null,
-        revenue: dn?.revenue || comp.revenue || null,
-        profit: dn?.profit || comp.profit || null,
         courtCasesCount: dn?.courtCasesCount || 0,
         courtCases: dn?.courtCases || null,
         contractsCount: dn?.contractsCount || 0,
