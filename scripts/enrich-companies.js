@@ -26,7 +26,6 @@ let allKeysExhausted = false;
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-// GET запрос (counterparty, finance, risks, scoring, inspections, bankruptcy, taxInfo, blockedBankAccounts)
 async function dnGet(path, params = "") {
   if (allKeysExhausted) return null;
   const url = `${DN_BASE}${path}?key=${DN_KEYS[dnKeyIndex]}${params}`;
@@ -43,40 +42,8 @@ async function dnGet(path, params = "") {
       allKeysExhausted = true;
       return null;
     }
+    // "нет доступа" — пропускаем эндпоинт, не ротируем ключ
     if (data.code && data.code >= 400) {
-      console.log(`  ⚠ ${path}: ${data.message || data.code}`);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.log(`  ✗ ${path}: ${err.message}`);
-    return null;
-  }
-}
-
-// POST запрос (vacancies, arbitration-cases, governmentContracts, products, lease-contracts, batchContracts)
-async function dnPost(path, body, queryParams = "") {
-  if (allKeysExhausted) return null;
-  const url = `${DN_BASE}${path}?key=${DN_KEYS[dnKeyIndex]}${queryParams}`;
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (res.status === 429 || data.code === 429) {
-      if (dnKeyIndex < DN_KEYS.length - 1) {
-        dnKeyIndex++;
-        console.log(`  🔄 DataNewton ключ ${dnKeyIndex + 1}/${DN_KEYS.length}`);
-        return dnPost(path, body, queryParams);
-      }
-      console.log(`\n🛑 ВСЕ ${DN_KEYS.length} КЛЮЧЕЙ ИСЧЕРПАНЫ.`);
-      allKeysExhausted = true;
-      return null;
-    }
-    if (data.code && data.code >= 400) {
-      console.log(`  ⚠ ${path}: ${data.message || data.code}`);
       return null;
     }
     return data;
@@ -96,7 +63,7 @@ async function enrichDataNewton(inn) {
   allData.counterparty = cp;
   const cpData = cp?.data || cp || {};
   const ogrn = cpData.ogrn;
-  console.log(`  ${cpData.ogrn ? "✓" : "—"} counterparty (ОГРН: ${ogrn || "—"})`);
+  console.log(`  ${ogrn ? "✓" : "—"} counterparty (ОГРН: ${ogrn || "—"})`);
   await sleep(400);
 
   // 2. Финансы (GET)
@@ -106,99 +73,56 @@ async function enrichDataNewton(inn) {
   console.log(`  ${fin?.data ? "✓" : "—"} finance`);
   await sleep(400);
 
-  // 3. Риски (GET)
-  const risks = await dnGet("/v1/risks", `&inn=${inn}`);
+  // 3. Арбитражные дела (GET)
+  const arb = await dnGet("/v1/arbitration-cases", `&inn=${inn}&limit=50&offset=0`);
   if (allKeysExhausted) return null;
-  allData.risks = risks;
-  console.log(`  ${risks?.data ? "✓" : "—"} risks`);
+  allData.arbitration = arb;
+  const arbData = arb?.data || [];
+  console.log(`  ${arbData.length > 0 ? "✓" : "—"} arbitration (${arbData.length})`);
   await sleep(400);
 
-  // 4. Скоринг (GET)
-  const scoring = await dnGet("/v1/scoring", `&inn=${inn}`);
+  // 4. Госконтракты (GET)
+  const gov = await dnGet("/v1/governmentContracts", `&inn=${inn}&limit=50&offset=0`);
   if (allKeysExhausted) return null;
-  allData.scoring = scoring;
-  console.log(`  ${scoring?.data ? "✓" : "—"} scoring`);
+  allData.governmentContracts = gov;
+  const govData = gov?.data || [];
+  console.log(`  ${govData.length > 0 ? "✓" : "—"} govContracts (${govData.length})`);
   await sleep(400);
 
-  // 5. Банкротство (GET)
+  // 5. Лизинг (GET)
+  const leases = await dnGet("/v1/lease-contracts", `&inn=${inn}`);
+  if (allKeysExhausted) return null;
+  allData.leases = leases;
+  console.log(`  ${leases?.data ? "✓" : "—"} leases`);
+  await sleep(400);
+
+  // 6. Банкротство (GET)
   const bankr = await dnGet("/v1/bankruptcy", `&inn=${inn}`);
   if (allKeysExhausted) return null;
   allData.bankruptcy = bankr;
   console.log(`  ${bankr?.data ? "✓" : "—"} bankruptcy`);
   await sleep(400);
 
-  // 6. Проверки (GET)
+  // 7. Проверки (GET)
   const insp = await dnGet("/v1/inspections", `&inn=${inn}`);
   if (allKeysExhausted) return null;
   allData.inspections = insp;
   console.log(`  ${insp?.data ? "✓" : "—"} inspections`);
   await sleep(400);
 
-  // 7. Налоги (GET)
-  const taxes = await dnGet("/v1/taxInfo", `&inn=${inn}`);
+  // 8. Госконтракты статистика (GET)
+  const govStat = await dnGet("/v1/governmentContractsStat", `&inn=${inn}`);
   if (allKeysExhausted) return null;
-  allData.taxes = taxes;
-  console.log(`  ${taxes?.data ? "✓" : "—"} taxes`);
+  allData.governmentContractsStat = govStat;
+  console.log(`  ${govStat?.data ? "✓" : "—"} govContractsStat`);
   await sleep(400);
 
-  // 8. Блокировки счетов (GET)
-  const blocked = await dnGet("/v1/blockedBankAccounts", `&inn=${inn}`);
-  if (allKeysExhausted) return null;
-  allData.blocked = blocked;
-  console.log(`  ${blocked?.data ? "✓" : "—"} blockedAccounts`);
-  await sleep(400);
-
-  // 9. СРО (GET)
-  const sro = await dnGet("/v1/sroMembership", `&inn=${inn}`);
-  if (allKeysExhausted) return null;
-  allData.sro = sro;
-  console.log(`  ${sro?.data ? "✓" : "—"} sro`);
-  await sleep(400);
-
-  // 10. Арбитражные дела (POST)
-  const arb = await dnPost("/v1/arbitration-cases", { inn, limit: 50, offset: 0 });
-  if (allKeysExhausted) return null;
-  allData.arbitration = arb;
-  console.log(`  ${arb?.data ? "✓" : "—"} arbitration (${arb?.data?.length || 0})`);
-  await sleep(400);
-
-  // 11. Госконтракты (POST)
-  const gov = await dnPost("/v1/governmentContracts", { inn, limit: 50, offset: 0 });
-  if (allKeysExhausted) return null;
-  allData.governmentContracts = gov;
-  console.log(`  ${gov?.data ? "✓" : "—"} govContracts`);
-  await sleep(400);
-
-  // 12. Вакансии (POST)
-  const vac = await dnPost("/v1/vacancies", { inn, limit: 20, offset: 0 });
-  if (allKeysExhausted) return null;
-  allData.vacancies = vac;
-  console.log(`  ${vac?.data ? "✓" : "—"} vacancies (${vac?.total_vacancies || 0})`);
-  await sleep(400);
-
-  // 13. Лизинг (POST)
-  const leases = await dnPost("/v1/lease-contracts", { inn });
-  if (allKeysExhausted) return null;
-  allData.leases = leases;
-  console.log(`  ${leases?.data ? "✓" : "—"} leases`);
-  await sleep(400);
-
-  // 14. Сертификаты (POST)
-  const prod = await dnPost("/v1/products", { inn, limit: 20, offset: 0 });
-  if (allKeysExhausted) return null;
-  allData.products = prod;
-  console.log(`  ${prod?.data ? "✓" : "—"} products`);
-  await sleep(400);
-
-  // Парсим
+  // Парсим финансы
   const finData = fin?.data || {};
   const finReports = Array.isArray(finData) ? finData : finData?.reports || [];
   const latestFin = Array.isArray(finReports) && finReports.length > 0 ? finReports[0] : null;
   const revenue = latestFin?.revenue ?? latestFin?.["2110"] ?? null;
   const profit = latestFin?.net_profit ?? latestFin?.["2400"] ?? null;
-
-  const arbData = arb?.data || [];
-  const govData = gov?.data || [];
 
   console.log(`  📊 Выручка: ${revenue || "—"} | Арбитраж: ${arbData.length} | Госконтракты: ${govData.length}`);
 
@@ -220,8 +144,6 @@ async function enrichDataNewton(inn) {
     raw: allData,
   };
 }
-
-// ==================== MAIN ====================
 
 async function processCompany(comp) {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
