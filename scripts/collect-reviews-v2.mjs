@@ -1,11 +1,11 @@
 /**
- * Сбор отзывов v2: Brave Search → fetch страниц → DeepSeek V4 извлекает отзывы.
+ * Сбор отзывов для ПОДРЯДЧИКОВ (Company): Brave Search → fetch страниц → DeepSeek V4.
  * 
  * Запуск:
- *   node scripts/collect-reviews-v2.mjs                  — все студии
- *   node scripts/collect-reviews-v2.mjs --limit=10       — первые 10
- *   node scripts/collect-reviews-v2.mjs --skip-existing   — пропустить уже собранные
- *   node scripts/collect-reviews-v2.mjs --studio="Название" — конкретная студия
+ *   node scripts/collect-reviews-v2.mjs                    — все подрядчики
+ *   node scripts/collect-reviews-v2.mjs --limit=10         — первые 10
+ *   node scripts/collect-reviews-v2.mjs --skip-existing    — пропустить уже собранные
+ *   node scripts/collect-reviews-v2.mjs --company="Название" — конкретная компания
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -22,8 +22,8 @@ const args = process.argv.slice(2);
 const limitArg = args.find(a => a.startsWith("--limit="));
 const LIMIT = limitArg ? parseInt(limitArg.split("=")[1]) : null;
 const SKIP_EXISTING = args.includes("--skip-existing");
-const studioArg = args.find(a => a.startsWith("--studio="));
-const STUDIO_NAME = studioArg ? studioArg.split("=").slice(1).join("=") : null;
+const companyArg = args.find(a => a.startsWith("--company="));
+const COMPANY_NAME = companyArg ? companyArg.split("=").slice(1).join("=") : null;
 
 // --- Статистика ---
 let stats = { total: 0, success: 0, failed: 0, skipped: 0 };
@@ -82,7 +82,7 @@ async function fetchPageText(url) {
 }
 
 // --- DeepSeek V4 анализ ---
-async function analyzeWithDeepSeek(studioName, searchResults, pages) {
+async function analyzeWithDeepSeek(companyName, city, searchResults, pages) {
   const context = searchResults
     .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`)
     .join("\n\n");
@@ -92,7 +92,9 @@ async function analyzeWithDeepSeek(studioName, searchResults, pages) {
     .map((p) => `--- ${p.url} ---\n${p.text}`)
     .join("\n\n");
 
-  const prompt = `Проанализируй результаты поиска и страницы с отзывами о дизайн-студии "${studioName}".
+  const cityHint = city ? ` (${city})` : "";
+
+  const prompt = `Проанализируй результаты поиска и страницы с отзывами о компании-подрядчике "${companyName}"${cityHint}.
 
 РЕЗУЛЬТАТЫ ПОИСКА:
 ${context}
@@ -101,7 +103,7 @@ ${context}
 ${pagesText || "Нет доступных страниц"}
 
 Задачи:
-1. Определи площадки с отзывами (Яндекс Карты, 2ГИС, Houzz, Zoon, Отзовик, Flamp, Google Maps, InMyRoom, Roomble и др.)
+1. Определи площадки с отзывами (Яндекс Карты, 2ГИС, Houzz, Zoon, Отзовик, Flamp, Google Maps, InMyRoom, Roomble, Профи.ру и др.)
 2. Извлеки КАЖДЫЙ отдельный отзыв — автор, текст, рейтинг, дата, площадка
 3. Составь саммари
 
@@ -124,7 +126,6 @@ ${pagesText || "Нет доступных страниц"}
 ВАЖНО: извлеки ВСЕ отзывы из текстов страниц И из сниппетов. Каждый отзыв — отдельный объект.
 Текст отзывов копируй ДОСЛОВНО, без перефразирования. Саммари — своими словами.`;
 
-  // Retry logic
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch("https://api.deepseek.com/chat/completions", {
@@ -187,33 +188,30 @@ const iconMap = {
   "профи": "👷", "profi": "👷",
 };
 
-// --- Обработка одной студии ---
-async function processStudio(studio) {
+// --- Обработка одного подрядчика ---
+async function processCompany(company) {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`→ ${studio.name} (${studio.slug})`);
+  console.log(`→ ${company.name} (${company.city || "город не указан"})`);
   stats.total++;
 
-  // Поисковые запросы
   const queries = [
-    `"${studio.name}" отзывы`,
-    `"${studio.name}" отзывы дизайн интерьера`,
-    `"${studio.name}" site:yandex.ru/maps`,
-    `"${studio.name}" site:2gis.ru`,
-    `"${studio.name}" site:zoon.ru`,
-    `"${studio.name}" site:flamp.ru`,
-    `"${studio.name}" site:otzovik.com`,
-    `"${studio.name}" site:houzz.ru`,
-    `"${studio.name}" site:inmyroom.ru`,
+    `"${company.name}" отзывы`,
+    `"${company.name}" отзывы мебель`,
+    `"${company.name}" отзывы подрядчик`,
+    `"${company.name}" site:yandex.ru/maps`,
+    `"${company.name}" site:2gis.ru`,
+    `"${company.name}" site:zoon.ru`,
+    `"${company.name}" site:flamp.ru`,
+    `"${company.name}" site:otzovik.com`,
   ];
 
   const allResults = [];
   for (const q of queries) {
     const results = await braveSearch(q);
     allResults.push(...results);
-    await sleep(1100); // Brave rate limit
+    await sleep(1100);
   }
 
-  // Дедупликация
   const seen = new Set();
   const unique = allResults.filter((r) => {
     if (seen.has(r.url)) return false;
@@ -228,7 +226,6 @@ async function processStudio(studio) {
     return;
   }
 
-  // Загрузка страниц
   const toFetch = unique.slice(0, 15);
   console.log(`  📥 Загрузка ${toFetch.length} страниц...`);
   const pages = [];
@@ -240,9 +237,8 @@ async function processStudio(studio) {
   const loaded = pages.filter((p) => p.text).length;
   console.log(`  📄 Загружено ${loaded}/${toFetch.length} страниц`);
 
-  // Анализ через DeepSeek
   console.log("  🤖 Анализ через DeepSeek V4...");
-  const analysis = await analyzeWithDeepSeek(studio.name, unique, pages);
+  const analysis = await analyzeWithDeepSeek(company.name, company.city, unique, pages);
   if (!analysis) {
     console.log("  ✗ DeepSeek не вернул результат");
     stats.failed++;
@@ -256,12 +252,11 @@ async function processStudio(studio) {
 
   const reviews = analysis.reviews || [];
 
-  // Сохранение в БД
   try {
-    await prisma.reviewSummary.upsert({
-      where: { studioId: studio.id },
+    await prisma.companyReviewSummary.upsert({
+      where: { companyId: company.id },
       create: {
-        studioId: studio.id,
+        companyId: company.id,
         avgRating: analysis.avgRating || null,
         totalReviews: analysis.totalReviews || 0,
         positives: analysis.positives || [],
@@ -302,40 +297,40 @@ async function processStudio(studio) {
 
 // --- Main ---
 async function main() {
-  console.log("🔍 Сбор отзывов v2 (DeepSeek V4)\n");
+  console.log("🔍 Сбор отзывов для ПОДРЯДЧИКОВ (DeepSeek V4)\n");
 
   let where = {};
-  if (STUDIO_NAME) {
-    where.name = { contains: STUDIO_NAME, mode: "insensitive" };
+  if (COMPANY_NAME) {
+    where.name = { contains: COMPANY_NAME, mode: "insensitive" };
   }
 
-  let studios = await prisma.studio.findMany({
+  let companies = await prisma.company.findMany({
     where,
-    orderBy: { projectCount: "desc" },
+    orderBy: { name: "asc" },
     include: { reviewSummary: true },
   });
 
   if (SKIP_EXISTING) {
-    const before = studios.length;
-    studios = studios.filter((s) => !s.reviewSummary);
-    console.log(`⏭ Пропуск уже собранных: ${before - studios.length} из ${before}`);
+    const before = companies.length;
+    companies = companies.filter((c) => !c.reviewSummary);
+    console.log(`⏭ Пропуск уже собранных: ${before - companies.length} из ${before}`);
   }
 
   if (LIMIT) {
-    studios = studios.slice(0, LIMIT);
+    companies = companies.slice(0, LIMIT);
   }
 
-  console.log(`📋 Студий к обработке: ${studios.length}\n`);
+  console.log(`📋 Подрядчиков к обработке: ${companies.length}\n`);
 
-  if (studios.length === 0) {
-    console.log("Нет студий для обработки.");
+  if (companies.length === 0) {
+    console.log("Нет подрядчиков для обработки.");
     await prisma.$disconnect();
     return;
   }
 
-  for (const studio of studios) {
-    await processStudio(studio);
-    await sleep(2000); // Пауза между студиями
+  for (const company of companies) {
+    await processCompany(company);
+    await sleep(2000);
   }
 
   console.log(`\n${"━".repeat(40)}`);
