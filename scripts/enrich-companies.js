@@ -1,6 +1,7 @@
 /**
- * Обогащение ПОДРЯДЧИКОВ (Company): Checkko + DataNewton по каждой компании.
- * Приоритет: DataNewton. Сырые данные обоих источников сохраняются.
+ * Обогащение ПОДРЯДЧИКОВ (Company) через DataNewton.
+ * 5 ключей с ротацией. При исчерпании всех — стоп.
+ * При повторном запуске — продолжает с необработанных.
  * 
  * Запуск: node scripts/enrich-companies.js
  */
@@ -8,105 +9,29 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 
-const CHECKKO_KEYS = [process.env.CHECKKO_API_KEY, process.env.CHECKKO_API_KEY_2].filter(Boolean);
-let checkkoKeyIndex = 0;
-const CHECKKO_BASE = "https://api.checko.ru/v2";
-
-const DN_KEY = process.env.DATANEWTON_API_KEY;
+const DN_KEYS = [
+  process.env.DATANEWTON_API_KEY,
+  process.env.DATANEWTON_API_KEY_2,
+  process.env.DATANEWTON_API_KEY_3,
+  process.env.DATANEWTON_API_KEY_4,
+  process.env.DATANEWTON_API_KEY_5,
+].filter(Boolean);
+let dnKeyIndex = 0;
 const DN_BASE = "https://api.datanewton.ru";
 
-if (!CHECKKO_KEYS.length) { console.error("❌ CHECKKO_API_KEY не задан"); process.exit(1); }
-if (!DN_KEY) { console.error("❌ DATANEWTON_API_KEY не задан"); process.exit(1); }
+if (!DN_KEYS.length) { console.error("❌ DATANEWTON_API_KEY не задан"); process.exit(1); }
+console.log(`🔑 DataNewton ключей: ${DN_KEYS.length}`);
+
+let allKeysExhausted = false;
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-
-// ==================== CHECKKO ====================
-
-async function checkkoApi(endpoint, inn) {
-  const url = `${CHECKKO_BASE}${endpoint}?key=${CHECKKO_KEYS[checkkoKeyIndex]}&inn=${inn}`;
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.meta?.status === 429 || data.meta?.message?.includes("лимит")) {
-      if (checkkoKeyIndex < CHECKKO_KEYS.length - 1) {
-        checkkoKeyIndex++;
-        console.log(`  🔄 Checkko ключ ${checkkoKeyIndex + 1}`);
-        return checkkoApi(endpoint, inn);
-      }
-      console.log(`  ⚠ Checkko: лимит на всех ключах`);
-      return null;
-    }
-    if (data.data) return data.data;
-    if (data.meta?.message) console.log(`  ⚠ ${endpoint}: ${data.meta.message}`);
-    return null;
-  } catch (err) {
-    console.log(`  ✗ ${endpoint}: ${err.message}`);
-    return null;
-  }
-}
-
-async function enrichCheckko(inn) {
-  console.log(`  📋 Checkko...`);
-
-  const company = await checkkoApi("/company", inn);
-  await sleep(1200);
-  const finances = await checkkoApi("/finances", inn);
-  await sleep(1200);
-  const legalCases = await checkkoApi("/legal-cases", inn);
-  await sleep(1200);
-  const contracts = await checkkoApi("/contracts", inn);
-  await sleep(1200);
-  const enforcements = await checkkoApi("/enforcements", inn);
-  await sleep(1200);
-  const entrepreneur = await checkkoApi("/entrepreneur", inn);
-  await sleep(1200);
-  const inspections = await checkkoApi("/inspections", inn);
-  await sleep(1200);
-  const bankruptcyMsgs = await checkkoApi("/bankruptcy-messages", inn);
-  await sleep(1200);
-  const bank = await checkkoApi("/bank", inn);
-  await sleep(1200);
-  const fedresurs = await checkkoApi("/fedresurs", inn);
-  await sleep(1200);
-
-  const years = finances?.Документы || finances || [];
-  const latest = Array.isArray(years) ? years[0] : null;
-  const revenue = latest?.Выручка ?? latest?.["2110"] ?? null;
-  const profit = latest?.ЧистаяПрибыль ?? latest?.["2400"] ?? null;
-
-  const casesArr = legalCases?.Документы || (Array.isArray(legalCases) ? legalCases : []);
-  const casesCount = legalCases?.Всего ?? casesArr.length ?? 0;
-  const contractsArr = contracts?.Документы || (Array.isArray(contracts) ? contracts : []);
-  const contractsCount = contracts?.Всего ?? contractsArr.length ?? 0;
-  const enfArr = enforcements?.Документы || (Array.isArray(enforcements) ? enforcements : []);
-  const enfCount = enforcements?.Всего ?? enfArr.length ?? 0;
-
-  console.log(`  ✓ Checkko: ${company?.НаимСокр || "OK"} | выручка: ${revenue || "—"} | суды: ${casesCount} | контракты: ${contractsCount} | исп.пр.: ${enfCount}`);
-
-  return {
-    ogrn: company?.ОГРН || null,
-    fullName: company?.НаимПолн || null,
-    address: company?.ЮрАдрес?.АдресРФ || null,
-    director: company?.Руководитель?.ФИО || null,
-    registrationDate: company?.ДатаРег || null,
-    status: company?.Статус?.Наим || null,
-    revenue: revenue != null ? String(revenue) : null,
-    profit: profit != null ? String(profit) : null,
-    employees: company?.КолРаботworkers ?? company?.СЧР ?? null,
-    courtCasesCount: casesCount,
-    courtCases: casesArr.length > 0 ? casesArr.slice(0, 20) : null,
-    contractsCount: contractsCount,
-    contracts: contractsArr.length > 0 ? contractsArr.slice(0, 20) : null,
-    enforcementsCount: enfCount,
-    enforcements: enfArr.length > 0 ? enfArr.slice(0, 20) : null,
-    raw: { company, finances, legalCases, contracts, enforcements, entrepreneur, inspections, bankruptcyMsgs, bank, fedresurs },
-  };
-}
 
 // ==================== DATANEWTON ====================
 
 async function dnPost(path, body, queryParams = "") {
-  const url = `${DN_BASE}${path}?key=${DN_KEY}${queryParams}`;
+  if (allKeysExhausted) return null;
+
+  const url = `${DN_BASE}${path}?key=${DN_KEYS[dnKeyIndex]}${queryParams}`;
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -114,6 +39,16 @@ async function dnPost(path, body, queryParams = "") {
       body: JSON.stringify(body),
     });
     const data = await res.json();
+    if (res.status === 429 || data.code === 429 || (data.message && data.message.includes("лимит"))) {
+      if (dnKeyIndex < DN_KEYS.length - 1) {
+        dnKeyIndex++;
+        console.log(`  🔄 DataNewton ключ ${dnKeyIndex + 1}/${DN_KEYS.length}`);
+        return dnPost(path, body, queryParams);
+      }
+      console.log(`\n🛑 ВСЕ ${DN_KEYS.length} КЛЮЧЕЙ ИСЧЕРПАНЫ. Останавливаемся.`);
+      allKeysExhausted = true;
+      return null;
+    }
     if (data.code && data.code >= 400) {
       console.log(`  ⚠ ${path}: ${data.message || data.code}`);
       return null;
@@ -129,6 +64,8 @@ async function enrichDataNewton(inn) {
   console.log(`  🔬 DataNewton...`);
 
   const suggest = await dnPost("/v1/suggestions", { search_query: inn, type: "all" });
+  if (allKeysExhausted) return null;
+
   if (!suggest?.data?.length) {
     console.log(`  ⚠ DataNewton ответ:`, JSON.stringify(suggest).slice(0, 300));
   }
@@ -139,36 +76,43 @@ async function enrichDataNewton(inn) {
 
   if (!ogrn) {
     console.log(`  ✗ ОГРН не найден в DataNewton`);
-    return null;
+    return { raw: { company: null }, notFound: true };
   }
 
   const allData = { company };
 
   const vac = await dnPost("/v1/vacancies", { ogrn, limit: 20, offset: 0 });
+  if (allKeysExhausted) return null;
   allData.vacancies = vac;
   await sleep(500);
 
   const prod = await dnPost("/v1/products", { ogrn, limit: 20, offset: 0 });
+  if (allKeysExhausted) return null;
   allData.products = prod;
   await sleep(500);
 
   const arb = await dnPost("/v1/arbitration/batch-cases", { ogrn: [ogrn], limit: 50, offset: 0 }, "&limit=50&offset=0");
+  if (allKeysExhausted) return null;
   allData.arbitration = arb;
   await sleep(500);
 
   const contr = await dnPost("/v1/batchContracts", { ogrn: [ogrn], limit: 50, offset: 0 }, "&limit=50&offset=0");
+  if (allKeysExhausted) return null;
   allData.contracts = contr;
   await sleep(500);
 
   const leases = await dnPost("/v1/leases", { ogrn: [ogrn], limit: 20, offset: 0 }, "&limit=20&offset=0");
+  if (allKeysExhausted) return null;
   allData.leases = leases;
   await sleep(500);
 
   const changes = await dnPost("/v1/batchChanges", { ogrn: [ogrn], limit: 20, offset: 0 }, "&limit=20&offset=0");
+  if (allKeysExhausted) return null;
   allData.changes = changes;
   await sleep(500);
 
   const tax = await dnPost("/v1/taxpayerStatuses", { inn_list: [inn] });
+  if (allKeysExhausted) return null;
   allData.taxpayer = tax;
   await sleep(500);
 
@@ -197,6 +141,8 @@ async function processCompany(comp) {
 
   const dn = await enrichDataNewton(comp.inn);
 
+  if (allKeysExhausted) return false;
+
   try {
     await prisma.company.update({
       where: { id: comp.id },
@@ -214,25 +160,54 @@ async function processCompany(comp) {
         enrichedAt: new Date(),
       },
     });
-    console.log(`  ✅ Сохранено (оба источника)`);
+    console.log(`  ✅ Сохранено`);
   } catch (err) {
     console.log(`  ✗ DB: ${err.message}`);
   }
+  return true;
 }
 
 async function main() {
-  const companies = await prisma.company.findMany({ where: { inn: { not: null } } });
-  console.log(`\n🔍 Обогащение ${companies.length} подрядчиков (Checkko + DataNewton)...\n`);
+  // Берём только необработанных (enrichedAt = null)
+  const companies = await prisma.company.findMany({
+    where: {
+      inn: { not: null },
+      enrichedAt: null,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const totalAll = await prisma.company.count({ where: { inn: { not: null } } });
+  const alreadyDone = totalAll - companies.length;
+
+  console.log(`\n🔍 DataNewton: обогащение подрядчиков`);
+  console.log(`   Всего с ИНН: ${totalAll}`);
+  console.log(`   Уже обработано: ${alreadyDone}`);
+  console.log(`   Осталось: ${companies.length}\n`);
+
+  if (companies.length === 0) {
+    console.log("✅ Все подрядчики уже обработаны!");
+    await prisma.$disconnect();
+    return;
+  }
 
   let done = 0;
   for (const comp of companies) {
-    await processCompany(comp);
+    const ok = await processCompany(comp);
+    if (!ok) break; // Ключи кончились — стоп
     done++;
-    if (done % 10 === 0) console.log(`\n--- Обработано ${done}/${companies.length} ---\n`);
+    if (done % 10 === 0) console.log(`\n--- Обработано ${done}/${companies.length} (всего ${alreadyDone + done}/${totalAll}) ---\n`);
   }
 
   console.log(`\n${"━".repeat(40)}`);
-  console.log(`✅ Готово! Обработано: ${done}/${companies.length}`);
+  if (allKeysExhausted) {
+    console.log(`⏸ Остановлено: все ключи исчерпаны`);
+    console.log(`   Обработано за этот запуск: ${done}`);
+    console.log(`   Осталось: ${companies.length - done}`);
+    console.log(`   Запусти скрипт снова когда лимиты обновятся`);
+  } else {
+    console.log(`✅ Готово! Обработано: ${done}`);
+  }
   console.log(`${"━".repeat(40)}\n`);
   await prisma.$disconnect();
 }
