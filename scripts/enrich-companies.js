@@ -30,7 +30,6 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function dnPost(path, body, queryParams = "") {
   if (allKeysExhausted) return null;
-
   const url = `${DN_BASE}${path}?key=${DN_KEYS[dnKeyIndex]}${queryParams}`;
   try {
     const res = await fetch(url, {
@@ -39,7 +38,7 @@ async function dnPost(path, body, queryParams = "") {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (res.status === 429 || data.code === 429 || (data.message && data.message.includes("лимит"))) {
+    if (res.status === 429 || data.code === 429 || (data.message && (data.message.includes("лимит") || data.message.includes("доступ")))) {
       if (dnKeyIndex < DN_KEYS.length - 1) {
         dnKeyIndex++;
         console.log(`  🔄 DataNewton ключ ${dnKeyIndex + 1}/${DN_KEYS.length}`);
@@ -60,75 +59,175 @@ async function dnPost(path, body, queryParams = "") {
   }
 }
 
+async function dnGet(path, queryParams = "") {
+  if (allKeysExhausted) return null;
+  const url = `${DN_BASE}${path}?key=${DN_KEYS[dnKeyIndex]}${queryParams}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (res.status === 429 || data.code === 429 || (data.message && (data.message.includes("лимит") || data.message.includes("доступ")))) {
+      if (dnKeyIndex < DN_KEYS.length - 1) {
+        dnKeyIndex++;
+        console.log(`  🔄 DataNewton ключ ${dnKeyIndex + 1}/${DN_KEYS.length}`);
+        return dnGet(path, queryParams);
+      }
+      console.log(`\n🛑 ВСЕ ${DN_KEYS.length} КЛЮЧЕЙ ИСЧЕРПАНЫ. Останавливаемся.`);
+      allKeysExhausted = true;
+      return null;
+    }
+    if (data.code && data.code >= 400) {
+      console.log(`  ⚠ ${path}: ${data.message || data.code}`);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.log(`  ✗ ${path}: ${err.message}`);
+    return null;
+  }
+}
+
 async function enrichDataNewton(inn) {
   console.log(`  🔬 DataNewton...`);
+  const allData = {};
 
-  const suggest = await dnPost("/v1/suggestions", { search_query: inn, type: "all" });
+  // 1. Общая информация о контрагенте
+  const cp = await dnPost("/v1/counterparty", { inn });
   if (allKeysExhausted) return null;
+  allData.counterparty = cp;
+  const ogrn = cp?.data?.ogrn || cp?.ogrn;
+  console.log(`  ${cp?.data ? "✓" : "—"} counterparty (ОГРН: ${ogrn || "—"})`);
+  await sleep(400);
 
-  if (!suggest?.data?.length) {
-    console.log(`  ⚠ DataNewton ответ:`, JSON.stringify(suggest).slice(0, 300));
-  }
-  const company = suggest?.data?.[0];
-  const ogrn = company?.ogrn;
-  console.log(`  ${company ? "✓" : "—"} suggestions (ОГРН: ${ogrn || "—"})`);
-  await sleep(500);
-
-  if (!ogrn) {
-    console.log(`  ✗ ОГРН не найден в DataNewton`);
-    return { raw: { company: null }, notFound: true };
-  }
-
-  const allData = { company };
-
-  const vac = await dnPost("/v1/vacancies", { ogrn, limit: 20, offset: 0 });
+  // 2. Финансы
+  const fin = await dnPost("/v1/finance", { inn });
   if (allKeysExhausted) return null;
-  allData.vacancies = vac;
-  await sleep(500);
+  allData.finance = fin;
+  console.log(`  ${fin?.data ? "✓" : "—"} finance`);
+  await sleep(400);
 
-  const prod = await dnPost("/v1/products", { ogrn, limit: 20, offset: 0 });
+  // 3. Риски
+  const risks = await dnPost("/v1/risks", { inn });
   if (allKeysExhausted) return null;
-  allData.products = prod;
-  await sleep(500);
+  allData.risks = risks;
+  console.log(`  ${risks?.data ? "✓" : "—"} risks`);
+  await sleep(400);
 
-  const arb = await dnPost("/v1/arbitration/batch-cases", { ogrn: [ogrn], limit: 50, offset: 0 }, "&limit=50&offset=0");
+  // 4. Скоринг
+  const scoring = await dnPost("/v1/scoring", { inn });
+  if (allKeysExhausted) return null;
+  allData.scoring = scoring;
+  console.log(`  ${scoring?.data ? "✓" : "—"} scoring`);
+  await sleep(400);
+
+  // 5. Арбитражные дела
+  const arb = await dnPost("/v1/arbitration-cases", { inn, limit: 50, offset: 0 });
   if (allKeysExhausted) return null;
   allData.arbitration = arb;
-  await sleep(500);
+  console.log(`  ${arb?.data ? "✓" : "—"} arbitration (${arb?.data?.length || 0} дел)`);
+  await sleep(400);
 
-  const contr = await dnPost("/v1/batchContracts", { ogrn: [ogrn], limit: 50, offset: 0 }, "&limit=50&offset=0");
+  // 6. Госконтракты
+  const gov = await dnPost("/v1/governmentContracts", { inn, limit: 50, offset: 0 });
   if (allKeysExhausted) return null;
-  allData.contracts = contr;
-  await sleep(500);
+  allData.governmentContracts = gov;
+  console.log(`  ${gov?.data ? "✓" : "—"} govContracts`);
+  await sleep(400);
 
-  const leases = await dnPost("/v1/leases", { ogrn: [ogrn], limit: 20, offset: 0 }, "&limit=20&offset=0");
+  // 7. Исполнительные производства (ФССП)
+  const fssp = await dnPost("/v1/fssp", { inn });
+  if (allKeysExhausted) return null;
+  allData.fssp = fssp;
+  console.log(`  ${fssp?.data ? "✓" : "—"} fssp`);
+  await sleep(400);
+
+  // 8. Банкротство
+  const bankr = await dnPost("/v1/bankruptcy", { inn });
+  if (allKeysExhausted) return null;
+  allData.bankruptcy = bankr;
+  console.log(`  ${bankr?.data ? "✓" : "—"} bankruptcy`);
+  await sleep(400);
+
+  // 9. Проверки
+  const insp = await dnPost("/v1/inspections", { inn });
+  if (allKeysExhausted) return null;
+  allData.inspections = insp;
+  console.log(`  ${insp?.data ? "✓" : "—"} inspections`);
+  await sleep(400);
+
+  // 10. Налоги
+  const taxes = await dnPost("/v1/taxInfo", { inn });
+  if (allKeysExhausted) return null;
+  allData.taxes = taxes;
+  console.log(`  ${taxes?.data ? "✓" : "—"} taxes`);
+  await sleep(400);
+
+  // 11. Вакансии
+  const vac = await dnPost("/v1/vacancies", { inn, limit: 20, offset: 0 });
+  if (allKeysExhausted) return null;
+  allData.vacancies = vac;
+  console.log(`  ${vac?.data ? "✓" : "—"} vacancies (${vac?.total_vacancies || 0})`);
+  await sleep(400);
+
+  // 12. Лизинг
+  const leases = await dnPost("/v1/lease-contracts", { inn });
   if (allKeysExhausted) return null;
   allData.leases = leases;
-  await sleep(500);
+  console.log(`  ${leases?.data ? "✓" : "—"} leases`);
+  await sleep(400);
 
-  const changes = await dnPost("/v1/batchChanges", { ogrn: [ogrn], limit: 20, offset: 0 }, "&limit=20&offset=0");
+  // 13. Сертификаты/декларации
+  const prod = await dnPost("/v1/products", { inn, limit: 20, offset: 0 });
   if (allKeysExhausted) return null;
-  allData.changes = changes;
-  await sleep(500);
+  allData.products = prod;
+  console.log(`  ${prod?.data ? "✓" : "—"} products`);
+  await sleep(400);
 
-  const tax = await dnPost("/v1/taxpayerStatuses", { inn_list: [inn] });
+  // 14. Блокировки счетов
+  const blocked = await dnPost("/v1/blockedBankAccounts", { inn });
   if (allKeysExhausted) return null;
-  allData.taxpayer = tax;
-  await sleep(500);
+  allData.blocked = blocked;
+  console.log(`  ${blocked?.data ? "✓" : "—"} blockedAccounts`);
+  await sleep(400);
 
-  console.log(`  ✓ DataNewton: вакансии: ${vac?.total_vacancies || 0} | арбитраж: ${arb?.data?.length || 0} | контракты: ${contr?.data?.length || 0}`);
+  // 15. СРО
+  const sro = await dnPost("/v1/sroMembership", { inn });
+  if (allKeysExhausted) return null;
+  allData.sro = sro;
+  console.log(`  ${sro?.data ? "✓" : "—"} sro`);
+  await sleep(400);
+
+  // Парсим данные
+  const cpData = cp?.data || cp || {};
+  const finData = fin?.data || {};
+  const arbData = arb?.data || [];
+  const govData = gov?.data || [];
+  const fsspData = fssp?.data || [];
+
+  // Выручка из финансов
+  const finReports = Array.isArray(finData) ? finData : finData?.reports || [];
+  const latestFin = finReports[0];
+  const revenue = latestFin?.revenue ?? latestFin?.["2110"] ?? null;
+  const profit = latestFin?.net_profit ?? latestFin?.["2400"] ?? null;
+
+  console.log(`  📊 Выручка: ${revenue || "—"} | Арбитраж: ${arbData.length} | Госконтракты: ${govData.length} | ФССП: ${fsspData.length}`);
 
   return {
-    ogrn,
-    fullName: company?.full_name || null,
-    address: company?.legal_address || null,
-    employees: company?.employees_count ?? null,
-    foundedYear: company?.registration_date ? parseInt(company.registration_date.slice(0, 4)) : null,
-    status: company?.active ? "Действует" : "Не действует",
-    courtCasesCount: arb?.data?.length || 0,
-    courtCases: arb?.data?.slice(0, 20) || null,
-    contractsCount: contr?.data?.length || contr?.total || 0,
-    contracts: contr?.data?.slice(0, 20) || null,
+    ogrn: ogrn || null,
+    fullName: cpData.full_name || cpData.fullName || null,
+    address: cpData.legal_address || cpData.address || null,
+    director: cpData.director || cpData.head?.name || null,
+    registrationDate: cpData.registration_date || cpData.establishmentDate || null,
+    employees: cpData.employees_count ?? cpData.employees ?? null,
+    foundedYear: cpData.registration_date ? parseInt(String(cpData.registration_date).slice(0, 4)) : null,
+    status: cpData.active === true ? "Действует" : cpData.active === false ? "Не действует" : cpData.status || null,
+    revenue: revenue != null ? String(revenue) : null,
+    profit: profit != null ? String(profit) : null,
+    courtCasesCount: arbData.length || 0,
+    courtCases: arbData.length > 0 ? arbData.slice(0, 20) : null,
+    contractsCount: govData.length || 0,
+    contracts: govData.length > 0 ? govData.slice(0, 20) : null,
+    enforcementsCount: fsspData.length || 0,
+    enforcements: fsspData.length > 0 ? fsspData.slice(0, 20) : null,
     raw: allData,
   };
 }
@@ -140,7 +239,6 @@ async function processCompany(comp) {
   console.log(`→ ${comp.name} (ИНН: ${comp.inn})`);
 
   const dn = await enrichDataNewton(comp.inn);
-
   if (allKeysExhausted) return false;
 
   try {
@@ -149,13 +247,19 @@ async function processCompany(comp) {
       data: {
         ogrn: dn?.ogrn || comp.ogrn || null,
         address: dn?.address || comp.address || null,
+        director: dn?.director || comp.director || null,
+        registrationDate: dn?.registrationDate || comp.registrationDate || null,
         employees: dn?.employees ?? comp.employees ?? null,
         foundedYear: dn?.foundedYear ?? comp.foundedYear ?? null,
         status: dn?.status || comp.status || null,
+        revenue: dn?.revenue || comp.revenue || null,
+        profit: dn?.profit || comp.profit || null,
         courtCasesCount: dn?.courtCasesCount || 0,
         courtCases: dn?.courtCases || null,
         contractsCount: dn?.contractsCount || 0,
         contracts: dn?.contracts || null,
+        enforcementsCount: dn?.enforcementsCount || 0,
+        enforcements: dn?.enforcements || null,
         rawDataNewton: dn?.raw || null,
         enrichedAt: new Date(),
       },
@@ -168,12 +272,8 @@ async function processCompany(comp) {
 }
 
 async function main() {
-  // Берём только необработанных (enrichedAt = null)
   const companies = await prisma.company.findMany({
-    where: {
-      inn: { not: null },
-      enrichedAt: null,
-    },
+    where: { inn: { not: null }, enrichedAt: null },
     orderBy: { name: "asc" },
   });
 
@@ -194,7 +294,7 @@ async function main() {
   let done = 0;
   for (const comp of companies) {
     const ok = await processCompany(comp);
-    if (!ok) break; // Ключи кончились — стоп
+    if (!ok) break;
     done++;
     if (done % 10 === 0) console.log(`\n--- Обработано ${done}/${companies.length} (всего ${alreadyDone + done}/${totalAll}) ---\n`);
   }
