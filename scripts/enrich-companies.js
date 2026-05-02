@@ -192,30 +192,21 @@ async function processCompany(comp) {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`→ ${comp.name} (ИНН: ${comp.inn})`);
 
-  const ck = await enrichCheckko(comp.inn);
   const dn = await enrichDataNewton(comp.inn);
 
-  // Приоритет: DataNewton, fallback на Checkko, fallback на существующие данные
   try {
     await prisma.company.update({
       where: { id: comp.id },
       data: {
-        ogrn: dn?.ogrn || ck?.ogrn || comp.ogrn || null,
-        address: dn?.address || ck?.address || comp.address || null,
-        revenue: ck?.revenue || comp.revenue || null,
-        employees: dn?.employees ?? ck?.employees ?? comp.employees ?? null,
+        ogrn: dn?.ogrn || comp.ogrn || null,
+        address: dn?.address || comp.address || null,
+        employees: dn?.employees ?? comp.employees ?? null,
         foundedYear: dn?.foundedYear ?? comp.foundedYear ?? null,
-        director: ck?.director || comp.director || null,
-        registrationDate: ck?.registrationDate || comp.registrationDate || null,
-        status: dn?.status || ck?.status || comp.status || null,
-        profit: ck?.profit || comp.profit || null,
-        courtCasesCount: dn?.courtCasesCount || ck?.courtCasesCount || 0,
-        courtCases: dn?.courtCases || ck?.courtCases || null,
-        contractsCount: dn?.contractsCount || ck?.contractsCount || 0,
-        contracts: dn?.contracts || ck?.contracts || null,
-        enforcementsCount: ck?.enforcementsCount || 0,
-        enforcements: ck?.enforcements || null,
-        rawCheckko: ck?.raw || null,
+        status: dn?.status || comp.status || null,
+        courtCasesCount: dn?.courtCasesCount || 0,
+        courtCases: dn?.courtCases || null,
+        contractsCount: dn?.contractsCount || 0,
+        contracts: dn?.contracts || null,
         rawDataNewton: dn?.raw || null,
         enrichedAt: new Date(),
       },
