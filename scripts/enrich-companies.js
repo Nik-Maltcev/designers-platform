@@ -128,7 +128,10 @@ async function dnPost(path, body, queryParams = "") {
 async function enrichDataNewton(inn) {
   console.log(`  🔬 DataNewton...`);
 
-  const suggest = await dnPost("/v1/suggestions", { search_query: inn, limit: 1 });
+  const suggest = await dnPost("/v1/suggestions", { search_query: inn, type: "all" });
+  if (!suggest?.data?.length) {
+    console.log(`  ⚠ DataNewton ответ:`, JSON.stringify(suggest).slice(0, 300));
+  }
   const company = suggest?.data?.[0];
   const ogrn = company?.ogrn;
   console.log(`  ${company ? "✓" : "—"} suggestions (ОГРН: ${ogrn || "—"})`);
