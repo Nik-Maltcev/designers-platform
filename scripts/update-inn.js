@@ -25,23 +25,25 @@ async function fetchInnFromPages(baseUrl) {
 }
 
 async function main() {
-  const studios = await prisma.studio.findMany({ where: { inn: null } });
-  console.log(`Обновление ИНН для ${studios.length} студий без ИНН...\n`);
+  const companies = await prisma.company.findMany({ where: { inn: null } });
+  console.log(`Обновление ИНН для ${companies.length} подрядчиков без ИНН...\n`);
 
-  for (const studio of studios) {
-    if (!studio.website) continue;
-    console.log(`→ ${studio.name} (${studio.website})`);
-    const inn = await fetchInnFromPages(studio.website);
+  let found = 0;
+  for (const company of companies) {
+    if (!company.website) continue;
+    console.log(`→ ${company.name} (${company.website})`);
+    const inn = await fetchInnFromPages(company.website);
     if (inn) {
-      await prisma.studio.update({ where: { id: studio.id }, data: { inn } });
+      await prisma.company.update({ where: { id: company.id }, data: { inn } });
       console.log(`  ✓ ИНН: ${inn}`);
+      found++;
     } else {
       console.log(`  ✗ ИНН не найден`);
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
 
-  console.log("\n✅ Готово!");
+  console.log(`\n✅ Готово! Найдено ИНН: ${found}/${companies.length}`);
   await prisma.$disconnect();
 }
 
