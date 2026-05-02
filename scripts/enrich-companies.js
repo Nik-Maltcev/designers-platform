@@ -1,5 +1,6 @@
 /**
  * Обогащение ПОДРЯДЧИКОВ (Company): Checkko + DataNewton по каждой компании.
+ * Приоритет: DataNewton. Сырые данные обоих источников сохраняются.
  * 
  * Запуск: node scripts/enrich-companies.js
  */
@@ -44,28 +45,28 @@ async function checkkoApi(endpoint, inn) {
   }
 }
 
-async function enrichCheckko(comp) {
+async function enrichCheckko(inn) {
   console.log(`  📋 Checkko...`);
 
-  const company = await checkkoApi("/company", comp.inn);
+  const company = await checkkoApi("/company", inn);
   await sleep(1200);
-  const finances = await checkkoApi("/finances", comp.inn);
+  const finances = await checkkoApi("/finances", inn);
   await sleep(1200);
-  const legalCases = await checkkoApi("/legal-cases", comp.inn);
+  const legalCases = await checkkoApi("/legal-cases", inn);
   await sleep(1200);
-  const contracts = await checkkoApi("/contracts", comp.inn);
+  const contracts = await checkkoApi("/contracts", inn);
   await sleep(1200);
-  const enforcements = await checkkoApi("/enforcements", comp.inn);
+  const enforcements = await checkkoApi("/enforcements", inn);
   await sleep(1200);
-  const entrepreneur = await checkkoApi("/entrepreneur", comp.inn);
+  const entrepreneur = await checkkoApi("/entrepreneur", inn);
   await sleep(1200);
-  const inspections = await checkkoApi("/inspections", comp.inn);
+  const inspections = await checkkoApi("/inspections", inn);
   await sleep(1200);
-  const bankruptcyMsgs = await checkkoApi("/bankruptcy-messages", comp.inn);
+  const bankruptcyMsgs = await checkkoApi("/bankruptcy-messages", inn);
   await sleep(1200);
-  const bank = await checkkoApi("/bank", comp.inn);
+  const bank = await checkkoApi("/bank", inn);
   await sleep(1200);
-  const fedresurs = await checkkoApi("/fedresurs", comp.inn);
+  const fedresurs = await checkkoApi("/fedresurs", inn);
   await sleep(1200);
 
   const years = finances?.Документы || finances || [];
@@ -75,10 +76,8 @@ async function enrichCheckko(comp) {
 
   const casesArr = legalCases?.Документы || (Array.isArray(legalCases) ? legalCases : []);
   const casesCount = legalCases?.Всего ?? casesArr.length ?? 0;
-
   const contractsArr = contracts?.Документы || (Array.isArray(contracts) ? contracts : []);
   const contractsCount = contracts?.Всего ?? contractsArr.length ?? 0;
-
   const enfArr = enforcements?.Документы || (Array.isArray(enforcements) ? enforcements : []);
   const enfCount = enforcements?.Всего ?? enfArr.length ?? 0;
 
@@ -86,10 +85,21 @@ async function enrichCheckko(comp) {
 
   return {
     ogrn: company?.ОГРН || null,
+    fullName: company?.НаимПолн || null,
     address: company?.ЮрАдрес?.АдресРФ || null,
+    director: company?.Руководитель?.ФИО || null,
+    registrationDate: company?.ДатаРег || null,
+    status: company?.Статус?.Наим || null,
     revenue: revenue != null ? String(revenue) : null,
+    profit: profit != null ? String(profit) : null,
     employees: company?.КолРаботworkers ?? company?.СЧР ?? null,
-    checkkoRaw: { company, finances, legalCases, contracts, enforcements, entrepreneur, inspections, bankruptcyMsgs, bank, fedresurs },
+    courtCasesCount: casesCount,
+    courtCases: casesArr.length > 0 ? casesArr.slice(0, 20) : null,
+    contractsCount: contractsCount,
+    contracts: contractsArr.length > 0 ? contractsArr.slice(0, 20) : null,
+    enforcementsCount: enfCount,
+    enforcements: enfArr.length > 0 ? enfArr.slice(0, 20) : null,
+    raw: { company, finances, legalCases, contracts, enforcements, entrepreneur, inspections, bankruptcyMsgs, bank, fedresurs },
   };
 }
 
@@ -115,10 +125,10 @@ async function dnPost(path, body, queryParams = "") {
   }
 }
 
-async function enrichDataNewton(comp) {
+async function enrichDataNewton(inn) {
   console.log(`  🔬 DataNewton...`);
 
-  const suggest = await dnPost("/v1/suggestions", { search_query: comp.inn, limit: 1 });
+  const suggest = await dnPost("/v1/suggestions", { search_query: inn, limit: 1 });
   const company = suggest?.data?.[0];
   const ogrn = company?.ogrn;
   console.log(`  ${company ? "✓" : "—"} suggestions (ОГРН: ${ogrn || "—"})`);
@@ -155,7 +165,7 @@ async function enrichDataNewton(comp) {
   allData.changes = changes;
   await sleep(500);
 
-  const tax = await dnPost("/v1/taxpayerStatuses", { inn_list: [comp.inn] });
+  const tax = await dnPost("/v1/taxpayerStatuses", { inn_list: [inn] });
   allData.taxpayer = tax;
   await sleep(500);
 
@@ -163,10 +173,16 @@ async function enrichDataNewton(comp) {
 
   return {
     ogrn,
+    fullName: company?.full_name || null,
     address: company?.legal_address || null,
     employees: company?.employees_count ?? null,
     foundedYear: company?.registration_date ? parseInt(company.registration_date.slice(0, 4)) : null,
-    datanewtonRaw: allData,
+    status: company?.active ? "Действует" : "Не действует",
+    courtCasesCount: arb?.data?.length || 0,
+    courtCases: arb?.data?.slice(0, 20) || null,
+    contractsCount: contr?.data?.length || contr?.total || 0,
+    contracts: contr?.data?.slice(0, 20) || null,
+    raw: allData,
   };
 }
 
@@ -176,22 +192,35 @@ async function processCompany(comp) {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`→ ${comp.name} (ИНН: ${comp.inn})`);
 
-  const checkko = await enrichCheckko(comp);
-  const dn = await enrichDataNewton(comp);
+  const ck = await enrichCheckko(comp.inn);
+  const dn = await enrichDataNewton(comp.inn);
 
-  // Merge and update
+  // Приоритет: DataNewton, fallback на Checkko, fallback на существующие данные
   try {
     await prisma.company.update({
       where: { id: comp.id },
       data: {
-        ogrn: checkko?.ogrn || dn?.ogrn || comp.ogrn || null,
-        address: checkko?.address || dn?.address || comp.address || null,
-        revenue: checkko?.revenue || comp.revenue || null,
-        employees: checkko?.employees ?? dn?.employees ?? comp.employees ?? null,
+        ogrn: dn?.ogrn || ck?.ogrn || comp.ogrn || null,
+        address: dn?.address || ck?.address || comp.address || null,
+        revenue: ck?.revenue || comp.revenue || null,
+        employees: dn?.employees ?? ck?.employees ?? comp.employees ?? null,
         foundedYear: dn?.foundedYear ?? comp.foundedYear ?? null,
+        director: ck?.director || comp.director || null,
+        registrationDate: ck?.registrationDate || comp.registrationDate || null,
+        status: dn?.status || ck?.status || comp.status || null,
+        profit: ck?.profit || comp.profit || null,
+        courtCasesCount: dn?.courtCasesCount || ck?.courtCasesCount || 0,
+        courtCases: dn?.courtCases || ck?.courtCases || null,
+        contractsCount: dn?.contractsCount || ck?.contractsCount || 0,
+        contracts: dn?.contracts || ck?.contracts || null,
+        enforcementsCount: ck?.enforcementsCount || 0,
+        enforcements: ck?.enforcements || null,
+        rawCheckko: ck?.raw || null,
+        rawDataNewton: dn?.raw || null,
+        enrichedAt: new Date(),
       },
     });
-    console.log(`  ✅ Сохранено`);
+    console.log(`  ✅ Сохранено (оба источника)`);
   } catch (err) {
     console.log(`  ✗ DB: ${err.message}`);
   }

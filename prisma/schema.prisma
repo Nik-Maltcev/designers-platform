@@ -241,6 +241,19 @@ model Company {
   revenue       String?
   employees     Int?
   foundedYear   Int?
+  director      String?
+  registrationDate String?
+  status        String?
+  profit        String?
+  courtCasesCount Int     @default(0)
+  courtCases    Json?
+  contractsCount Int     @default(0)
+  contracts     Json?
+  enforcementsCount Int  @default(0)
+  enforcements  Json?
+  rawCheckko    Json?
+  rawDataNewton Json?
+  enrichedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   proposals     Proposal[]
