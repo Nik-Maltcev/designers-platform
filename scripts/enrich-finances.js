@@ -55,6 +55,8 @@ async function processCompany(comp) {
 
   const finances = await checkkoApi("/finances", comp.inn);
   if (allKeysExhausted) return false;
+  
+  console.log(`  📦 Raw:`, JSON.stringify(finances).slice(0, 300));
   await sleep(1200);
 
   const years = finances?.Документы || finances || [];
