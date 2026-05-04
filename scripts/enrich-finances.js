@@ -59,14 +59,25 @@ async function processCompany(comp) {
   console.log(`  📦 Raw:`, JSON.stringify(finances).slice(0, 300));
   await sleep(1200);
 
-  const years = finances?.Документы || finances || [];
-  const latest = Array.isArray(years) ? years[0] : null;
-  const revenue = latest?.Выручка ?? latest?.["2110"] ?? null;
-  const profit = latest?.ЧистаяПрибыль ?? latest?.["2400"] ?? null;
+  // Формат: объект с годами {"2020": {"2110": выручка, "2400": прибыль}, "2021": {...}}
+  // Берём последний год
+  let revenue = null;
+  let profit = null;
+  let allYearsData = null;
+
+  if (finances && typeof finances === "object") {
+    const years = Object.keys(finances).filter(k => /^\d{4}$/.test(k)).sort().reverse();
+    if (years.length > 0) {
+      const latestYear = years[0];
+      const latest = finances[latestYear];
+      revenue = latest?.["2110"] ?? null; // Выручка
+      profit = latest?.["2400"] ?? null;  // Чистая прибыль
+      allYearsData = finances;
+    }
+  }
 
   if (!revenue && !profit) {
     console.log(`  — Финансов нет`);
-    // Помечаем что проверили, чтобы не проверять повторно
     await prisma.company.update({
       where: { id: comp.id },
       data: { revenue: "0" },
@@ -75,14 +86,13 @@ async function processCompany(comp) {
   }
 
   try {
-    // Сохраняем финансы в rawCheckko
     const existingRaw = comp.rawCheckko || {};
     await prisma.company.update({
       where: { id: comp.id },
       data: {
         revenue: revenue != null ? String(revenue) : null,
         profit: profit != null ? String(profit) : null,
-        rawCheckko: { ...existingRaw, finances },
+        rawCheckko: { ...existingRaw, finances: allYearsData },
       },
     });
     console.log(`  ✓ Выручка: ${revenue || "—"} | Прибыль: ${profit || "—"}`);
