@@ -68,16 +68,21 @@ async function processCompany(comp) {
   if (finances && typeof finances === "object") {
     const years = Object.keys(finances).filter(k => /^\d{4}$/.test(k)).sort().reverse();
     if (years.length > 0) {
-      const latestYear = years[0];
-      const latest = finances[latestYear];
-      revenue = latest?.["2110"] ?? null; // Выручка
-      profit = latest?.["2400"] ?? null;  // Чистая прибыль
+      // Ищем последний год где есть выручка > 0
+      for (const year of years) {
+        const yearData = finances[year];
+        if (yearData?.["2110"] && yearData["2110"] > 0) {
+          revenue = yearData["2110"];
+          profit = yearData["2400"] ?? null;
+          break;
+        }
+      }
       allYearsData = finances;
     }
   }
 
-  if (!revenue && !profit) {
-    console.log(`  — Финансов нет`);
+  if (!allYearsData) {
+    console.log(`  — Финансов нет (API пусто)`);
     await prisma.company.update({
       where: { id: comp.id },
       data: { revenue: "0" },
@@ -90,12 +95,13 @@ async function processCompany(comp) {
     await prisma.company.update({
       where: { id: comp.id },
       data: {
-        revenue: revenue != null ? String(revenue) : null,
+        revenue: revenue != null ? String(revenue) : "0",
         profit: profit != null ? String(profit) : null,
         rawCheckko: { ...existingRaw, finances: allYearsData },
       },
     });
-    console.log(`  ✓ Выручка: ${revenue || "—"} | Прибыль: ${profit || "—"}`);
+    const years = Object.keys(allYearsData).filter(k => /^\d{4}$/.test(k));
+    console.log(`  ✓ Выручка: ${revenue || "—"} | Прибыль: ${profit || "—"} | Годов: ${years.length}`);
   } catch (err) {
     console.log(`  ✗ DB: ${err.message}`);
   }
