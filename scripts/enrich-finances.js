@@ -31,7 +31,7 @@ async function checkkoApi(endpoint, inn) {
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (data.meta?.status === 429 || data.meta?.message?.includes("лимит")) {
+    if (data.meta?.status === 429 || data.meta?.message?.includes("лимит") || data.meta?.message?.includes("не действителен")) {
       if (keyIndex < KEYS.length - 1) {
         keyIndex++;
         console.log(`  🔄 Checkko ключ ${keyIndex + 1}/${KEYS.length}`);
