@@ -115,6 +115,7 @@ async function main() {
       revenue: null,
     },
     orderBy: { name: "asc" },
+    take: 500,
   });
 
   const totalAll = await prisma.company.count({ where: { inn: { not: null } } });
