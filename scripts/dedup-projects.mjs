@@ -62,16 +62,20 @@ async function askDeepSeek(prompt) {
   return null;
 }
 
-async function processStudio(studio) {
+async function processEntity(entity) {
+  const whereClause = entity._type === "studio"
+    ? { studioId: entity.id }
+    : { companyId: entity.id };
+
   const projects = await prisma.project.findMany({
-    where: { studioId: studio.id },
+    where: whereClause,
     orderBy: { createdAt: "asc" },
   });
 
   if (projects.length <= 1) return { merged: 0, deleted: 0 };
 
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`→ ${studio.name} (${projects.length} проектов)`);
+  console.log(`→ ${entity.name} (${projects.length} проектов)`);
 
   // Формируем список для AI
   const projectList = projects.map((p, i) => ({
@@ -82,7 +86,7 @@ async function processStudio(studio) {
     firstImage: p.imageUrls[0] || "",
   }));
 
-  const prompt = `У дизайн-студии "${studio.name}" есть ${projects.length} проектов. Определи какие из них — ДУБЛИКАТЫ (один и тот же проект, разбитый на несколько записей).
+  const prompt = `У компании "${entity.name}" есть ${projects.length} проектов. Определи какие из них — ДУБЛИКАТЫ (один и тот же проект, разбитый на несколько записей).
 
 Признаки дубликата:
 - Похожие или одинаковые названия
@@ -156,8 +160,10 @@ ${projectList.map(p => `[${p.id}] "${p.title}" — ${p.description || "нет о
   }
 
   // Обновляем projectCount
-  const remaining = await prisma.project.count({ where: { studioId: studio.id } });
-  await prisma.studio.update({ where: { id: studio.id }, data: { projectCount: remaining } });
+  const remaining = await prisma.project.count({ where: entity._type === "studio" ? { studioId: entity.id } : { companyId: entity.id } });
+  if (entity._type === "studio") {
+    await prisma.studio.update({ where: { id: entity.id }, data: { projectCount: remaining } });
+  }
 
   console.log(`  ✅ Итого: удалено ${totalDeleted} дублей, осталось ${remaining} проектов`);
   return { merged: result.groups.length, deleted: totalDeleted };
@@ -169,19 +175,29 @@ async function main() {
     where.name = { contains: STUDIO_NAME, mode: "insensitive" };
   }
 
+  // Студии
   let studios = await prisma.studio.findMany({
     where,
     orderBy: { projectCount: "desc" },
   });
+  studios = studios.map(s => ({ ...s, _type: "studio" }));
 
-  if (LIMIT) studios = studios.slice(0, LIMIT);
+  // Подрядчики
+  let companies = await prisma.company.findMany({
+    where,
+    orderBy: { name: "asc" },
+  });
+  companies = companies.map(c => ({ ...c, _type: "company" }));
 
-  console.log(`🔍 Дедупликация проектов: ${studios.length} студий\n`);
+  let all = [...studios, ...companies];
+  if (LIMIT) all = all.slice(0, LIMIT);
+
+  console.log(`🔍 Дедупликация проектов: ${studios.length} студий + ${companies.length} подрядчиков\n`);
 
   let totalMerged = 0, totalDeleted = 0;
 
-  for (const studio of studios) {
-    const { merged, deleted } = await processStudio(studio);
+  for (const entity of all) {
+    const { merged, deleted } = await processEntity(entity);
     totalMerged += merged;
     totalDeleted += deleted;
   }
