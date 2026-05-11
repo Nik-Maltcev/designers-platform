@@ -9,9 +9,9 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-if (!DEEPSEEK_KEY) { console.error("❌ DEEPSEEK_API_KEY не задан"); process.exit(1); }
+if (!OPENAI_KEY) { console.error("❌ OPENAI_API_KEY не задан"); process.exit(1); }
 
 const args = process.argv.slice(2);
 const limitArg = args.find(a => a.startsWith("--limit="));
@@ -23,36 +23,37 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function isInteriorImage(imageUrl) {
   try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_KEY}`,
+        "Authorization": `Bearer ${OPENAI_KEY}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "image_url",
-                image_url: { url: imageUrl },
+                image_url: { url: imageUrl, detail: "low" },
               },
               {
                 type: "text",
-                text: "Это фото интерьера, экстерьера здания, мебели, дизайна помещения или архитектурного проекта? Ответь ТОЛЬКО одним словом: YES или NO. Если это портрет человека, логотип, иконка, скриншот сайта, текст, баннер — ответь NO.",
+                text: "Is this a photo of an interior, exterior, furniture, architecture, or design project? Answer ONLY YES or NO. If it's a portrait, logo, icon, screenshot, text, banner, or avatar — answer NO.",
               },
             ],
           },
         ],
         temperature: 0,
-        max_tokens: 10,
+        max_tokens: 5,
       }),
     });
 
     if (!res.ok) {
-      console.log(`    ⚠ DeepSeek ${res.status}`);
+      const err = await res.text().catch(() => "");
+      console.log(`    ⚠ GPT ${res.status}: ${err.slice(0, 100)}`);
       return true; // При ошибке оставляем
     }
 
