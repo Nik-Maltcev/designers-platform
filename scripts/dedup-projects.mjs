@@ -119,12 +119,20 @@ ${projectList.map(p => `[${p.id}] "${p.title}" — ${p.description || "нет о
     const groupProjects = group.map(i => projects[i]).filter(Boolean);
     if (groupProjects.length < 2) continue;
 
+    // Проверяем что проекты ещё существуют (не удалены в предыдущей группе)
+    const existing = [];
+    for (const p of groupProjects) {
+      const exists = await prisma.project.findUnique({ where: { id: p.id }, select: { id: true } });
+      if (exists) existing.push(p);
+    }
+    if (existing.length < 2) continue;
+
     // Оставляем первый, объединяем фото
-    const keeper = groupProjects[0];
+    const keeper = existing[0];
     const allImages = [];
     const seen = new Set();
 
-    for (const p of groupProjects) {
+    for (const p of existing) {
       for (const url of p.imageUrls) {
         if (!seen.has(url)) {
           seen.add(url);
@@ -140,7 +148,7 @@ ${projectList.map(p => `[${p.id}] "${p.title}" — ${p.description || "нет о
     });
 
     // Удаляем остальные
-    const toDelete = groupProjects.slice(1).map(p => p.id);
+    const toDelete = existing.slice(1).map(p => p.id);
     await prisma.project.deleteMany({ where: { id: { in: toDelete } } });
 
     totalDeleted += toDelete.length;
