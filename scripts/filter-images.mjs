@@ -1,12 +1,13 @@
 /**
- * Фильтрация картинок проектов через DeepSeek Vision.
- * Удаляет из imageUrls всё что не является фото интерьера/экстерьера.
+ * Фильтрация картинок проектов через GPT-4o-mini Vision.
+ * Батчинг: все фото проекта в одном запросе.
+ * Трекинг: сохраняет обработанные ID в файл, при перезапуске пропускает.
  * 
  * Запуск: node scripts/filter-images.mjs
  *         node scripts/filter-images.mjs --limit=50
- *         node scripts/filter-images.mjs --studio="Arch Detali"
  */
 import { PrismaClient } from "@prisma/client";
+import fs from "fs";
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
@@ -16,12 +17,38 @@ if (!OPENAI_KEY) { console.error("❌ OPENAI_API_KEY не задан"); process.
 const args = process.argv.slice(2);
 const limitArg = args.find(a => a.startsWith("--limit="));
 const LIMIT = limitArg ? parseInt(limitArg.split("=")[1]) : null;
-const studioArg = args.find(a => a.startsWith("--studio="));
-const STUDIO_NAME = studioArg ? studioArg.split("=").slice(1).join("=") : null;
+
+const PROGRESS_FILE = "/tmp/filter-images-done.json";
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function isInteriorImage(imageUrl) {
+function loadDone() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      return new Set(JSON.parse(fs.readFileSync(PROGRESS_FILE, "utf-8")));
+    }
+  } catch {}
+  return new Set();
+}
+
+function saveDone(doneSet) {
+  fs.writeFileSync(PROGRESS_FILE, JSON.stringify([...doneSet]));
+}
+
+async function filterBatch(imageUrls) {
+  if (imageUrls.length === 0) return [];
+
+  const content = [
+    ...imageUrls.map(url => ({
+      type: "image_url",
+      image_url: { url, detail: "low" },
+    })),
+    {
+      type: "text",
+      text: `There are ${imageUrls.length} images above. For EACH image, determine: is it a photo of an interior, exterior, furniture, architecture, or design project? Answer with a JSON array of ${imageUrls.length} booleans: [true, false, ...] where true = interior/design photo, false = portrait/logo/icon/banner/text/avatar. ONLY JSON array, nothing else.`,
+    },
+  ];
+
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -31,86 +58,48 @@ async function isInteriorImage(imageUrl) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: imageUrl, detail: "low" },
-              },
-              {
-                type: "text",
-                text: "Is this a photo of an interior, exterior, furniture, architecture, or design project? Answer ONLY YES or NO. If it's a portrait, logo, icon, screenshot, text, banner, or avatar — answer NO.",
-              },
-            ],
-          },
-        ],
+        messages: [{ role: "user", content }],
         temperature: 0,
-        max_tokens: 5,
+        max_tokens: 100,
       }),
     });
 
     if (!res.ok) {
       const err = await res.text().catch(() => "");
-      console.log(`    ⚠ GPT ${res.status}: ${err.slice(0, 100)}`);
-      return true; // При ошибке оставляем
+      console.log(`    ⚠ GPT ${res.status}: ${err.slice(0, 150)}`);
+      return imageUrls; // При ошибке оставляем все
     }
 
     const data = await res.json();
-    const answer = (data.choices?.[0]?.message?.content || "").trim().toUpperCase();
-    return answer.includes("YES");
+    const text = (data.choices?.[0]?.message?.content || "").trim();
+    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const flags = JSON.parse(cleaned);
+
+    if (!Array.isArray(flags) || flags.length !== imageUrls.length) {
+      console.log(`    ⚠ Неверный формат ответа, оставляем все`);
+      return imageUrls;
+    }
+
+    return imageUrls.filter((_, i) => flags[i] !== false);
   } catch (err) {
     console.log(`    ✗ ${err.message}`);
-    return true; // При ошибке оставляем
-  }
-}
-
-async function processProject(project) {
-  if (!project.imageUrls || project.imageUrls.length === 0) return;
-
-  const kept = [];
-  const removed = [];
-
-  for (const url of project.imageUrls) {
-    const ok = await isInteriorImage(url);
-    if (ok) {
-      kept.push(url);
-    } else {
-      removed.push(url);
-    }
-    await sleep(500);
-  }
-
-  if (removed.length > 0) {
-    await prisma.project.update({
-      where: { id: project.id },
-      data: { imageUrls: kept },
-    });
-    console.log(`    ✓ Оставлено: ${kept.length}, удалено: ${removed.length}`);
-    removed.forEach(u => console.log(`      ✗ ${u.slice(0, 80)}`));
-  } else {
-    console.log(`    ✓ Все ${kept.length} ок`);
+    return imageUrls;
   }
 }
 
 async function main() {
-  let where = {};
-  if (STUDIO_NAME) {
-    const studio = await prisma.studio.findFirst({
-      where: { name: { contains: STUDIO_NAME, mode: "insensitive" } },
-    });
-    if (studio) {
-      where.studioId = studio.id;
-      console.log(`🎯 Студия: ${studio.name}\n`);
-    }
-  }
+  const doneSet = loadDone();
+  console.log(`📋 Уже обработано ранее: ${doneSet.size}\n`);
 
   let projects = await prisma.project.findMany({
-    where: { ...where, imageUrls: { isEmpty: false } },
+    where: { imageUrls: { isEmpty: false } },
     include: { studio: true },
     orderBy: { createdAt: "desc" },
+    take: 5000,
   });
+
+  // Пропускаем уже обработанные
+  projects = projects.filter(p => !doneSet.has(p.id));
 
   if (LIMIT) projects = projects.slice(0, LIMIT);
 
@@ -120,14 +109,32 @@ async function main() {
 
   for (let i = 0; i < projects.length; i++) {
     const p = projects[i];
-    console.log(`  [${i + 1}/${projects.length}] ${p.title || "Без названия"} (${p.studio?.name || "—"}) — ${p.imageUrls.length} фото`);
-    
-    const before = p.imageUrls.length;
-    await processProject(p);
-    const after = (await prisma.project.findUnique({ where: { id: p.id } }))?.imageUrls.length || 0;
-    totalKept += after;
-    totalRemoved += (before - after);
+    console.log(`  [${i + 1}/${projects.length}] ${(p.title || "—").slice(0, 40)} (${p.studio?.name?.slice(0, 20) || "—"}) — ${p.imageUrls.length} фото`);
+
+    const kept = await filterBatch(p.imageUrls);
+    const removed = p.imageUrls.length - kept.length;
+
+    if (removed > 0) {
+      await prisma.project.update({
+        where: { id: p.id },
+        data: { imageUrls: kept },
+      });
+      console.log(`    ✓ Оставлено: ${kept.length}, удалено: ${removed}`);
+    } else {
+      console.log(`    ✓ Все ${kept.length} ок`);
+    }
+
+    totalKept += kept.length;
+    totalRemoved += removed;
+
+    // Сохраняем прогресс каждые 10 проектов
+    doneSet.add(p.id);
+    if (i % 10 === 0) saveDone(doneSet);
+
+    await sleep(200);
   }
+
+  saveDone(doneSet);
 
   console.log(`\n${"━".repeat(40)}`);
   console.log(`✅ Готово!`);
