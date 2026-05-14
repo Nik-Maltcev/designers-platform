@@ -44,9 +44,11 @@ export default async function DesignersPage({ searchParams }) {
         { description: { contains: search, mode: "insensitive" } },
       ],
     }),
-    ...(segment && { segment: { contains: segment, mode: "insensitive" } }),
+    ...(segment && { segment }),
     ...(citySearch && { city: { contains: citySearch, mode: "insensitive" } }),
-    ...(objectType && { objectTypes: { has: objectType } }),
+    ...(objectType && {
+      objectTypes: { hasSome: [objectType] },
+    }),
     ...(verifiedOnly && { verified: true }),
   };
 
