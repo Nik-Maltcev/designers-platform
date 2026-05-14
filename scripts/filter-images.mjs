@@ -111,7 +111,12 @@ async function main() {
     const p = projects[i];
     console.log(`  [${i + 1}/${projects.length}] ${(p.title || "—").slice(0, 40)} (${p.studio?.name?.slice(0, 20) || "—"}) — ${p.imageUrls.length} фото`);
 
-    const kept = await filterBatch(p.imageUrls);
+    // Проверяем максимум 10 фото, остальные оставляем
+    const toCheck = p.imageUrls.slice(0, 10);
+    const rest = p.imageUrls.slice(10);
+
+    const checkedKept = await filterBatch(toCheck);
+    const kept = [...checkedKept, ...rest];
     const removed = p.imageUrls.length - kept.length;
 
     if (removed > 0) {

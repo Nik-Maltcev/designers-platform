@@ -32,6 +32,7 @@ export default async function DesignersPage({ searchParams }) {
   const objectType = params?.objectType || "";
   const sort = params?.sort || "projects";
   const verifiedOnly = params?.verified === "1";
+  const service = params?.service || "";
   const skip = (page - 1) * perPage;
 
   const cityMap = { "СПб": "Санкт-Петербург", "МО": "Московская" };
@@ -49,6 +50,7 @@ export default async function DesignersPage({ searchParams }) {
     ...(objectType && {
       objectTypes: { hasSome: [objectType] },
     }),
+    ...(service && { services: { has: service } }),
     ...(verifiedOnly && { verified: true }),
   };
 
@@ -62,7 +64,7 @@ export default async function DesignersPage({ searchParams }) {
   const totalPages = Math.ceil(total / perPage);
 
   function buildUrl(overrides) {
-    const p = { page: "1", q: search, segment, city, objectType, sort, verified: verifiedOnly ? "1" : "", perPage: String(perPage), ...overrides };
+    const p = { page: "1", q: search, segment, city, objectType, service, sort, verified: verifiedOnly ? "1" : "", perPage: String(perPage), ...overrides };
     const qs = Object.entries(p).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
     return `/designers?${qs}`;
   }
@@ -131,7 +133,8 @@ export default async function DesignersPage({ searchParams }) {
               <div className="space-y-2">
                 {SERVICES.map((s) => (
                   <label key={s} className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30" />
+                    <input type="checkbox" name="service" value={s} defaultChecked={service === s}
+                      className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30" />
                     <span className="text-sm text-on-surface-variant group-hover:text-on-surface">{s}</span>
                   </label>
                 ))}
@@ -141,16 +144,15 @@ export default async function DesignersPage({ searchParams }) {
             {/* Verified toggle */}
             <div className="mb-8">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Активность</h3>
-              <label className="flex items-center justify-between cursor-pointer">
+              <Link href={buildUrl({ verified: verifiedOnly ? "" : "1" })} className="flex items-center justify-between cursor-pointer">
                 <span className="text-sm text-on-surface-variant flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>
-                  Verified Only
+                  Только проверенные
                 </span>
-                <input type="hidden" name="verified" value={verifiedOnly ? "1" : "0"} />
                 <div className={`w-10 h-5 rounded-full relative transition-colors ${verifiedOnly ? "bg-primary" : "bg-slate-200"}`}>
                   <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow ${verifiedOnly ? "left-5" : "left-0.5"}`}></div>
                 </div>
-              </label>
+              </Link>
             </div>
 
             <button type="submit" className="w-full hero-gradient text-on-primary py-2.5 rounded-lg font-bold text-sm">Применить</button>
@@ -172,9 +174,9 @@ export default async function DesignersPage({ searchParams }) {
           <div className="flex items-center gap-1 mb-8 text-sm">
             <span className="text-on-surface-variant mr-2">Сортировать по:</span>
             {[
-              { key: "projects", label: "Сходство проектов" },
-              { key: "newest", label: "Активность" },
-              { key: "name", label: "Масштаб" },
+              { key: "projects", label: "По проектам" },
+              { key: "newest", label: "Новые" },
+              { key: "name", label: "По названию" },
             ].map((s) => (
               <Link key={s.key} href={buildUrl({ sort: s.key })}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${sort === s.key ? "bg-primary text-white" : "text-on-surface-variant hover:bg-slate-100"}`}>

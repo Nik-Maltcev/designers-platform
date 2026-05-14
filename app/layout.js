@@ -2,6 +2,7 @@ import "./globals.css";
 import Link from "next/link";
 import { auth } from "./lib/auth";
 import AuthButton from "./components/AuthButton";
+import MobileMenu from "./components/MobileMenu";
 
 export const metadata = {
   title: "ПроектЛист — платформа проектных закупок для интерьера",
@@ -48,10 +49,11 @@ export default async function RootLayout({ children }) {
             <div className="flex items-center space-x-6">
               <Link
                 href="/post-project"
-                className="hero-gradient text-on-primary px-6 py-2.5 rounded-md font-headline font-bold text-sm tracking-wide transition-all duration-300 hover:opacity-90 active:scale-95"
+                className="hidden md:inline-block hero-gradient text-on-primary px-6 py-2.5 rounded-md font-headline font-bold text-sm tracking-wide transition-all duration-300 hover:opacity-90 active:scale-95"
               >
                 Разместить проект
               </Link>
+              <MobileMenu session={session} />
             </div>
           </div>
         </nav>

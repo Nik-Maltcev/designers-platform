@@ -29,7 +29,7 @@ export default async function ContractorsPage({ searchParams }) {
       ],
     }),
     ...(segment && { segment }),
-    ...(city && { city }),
+    ...(city && { city: { contains: city === "Санкт-Петербург" ? "Санкт-Петербург" : city, mode: "insensitive" } }),
   };
 
   const orderBy = sort === "name" ? { name: "asc" } : { createdAt: "desc" };
