@@ -34,6 +34,9 @@ export default async function DesignersPage({ searchParams }) {
   const verifiedOnly = params?.verified === "1";
   const skip = (page - 1) * perPage;
 
+  const cityMap = { "СПб": "Санкт-Петербург", "МО": "Московская" };
+  const citySearch = cityMap[city] || city;
+
   const where = {
     ...(search && {
       OR: [
@@ -42,7 +45,7 @@ export default async function DesignersPage({ searchParams }) {
       ],
     }),
     ...(segment && { segment: { contains: segment, mode: "insensitive" } }),
-    ...(city && { city: { contains: city, mode: "insensitive" } }),
+    ...(citySearch && { city: { contains: citySearch, mode: "insensitive" } }),
     ...(objectType && { objectTypes: { has: objectType } }),
     ...(verifiedOnly && { verified: true }),
   };
