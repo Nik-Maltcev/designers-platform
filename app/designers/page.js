@@ -42,7 +42,7 @@ export default async function DesignersPage({ searchParams }) {
       ],
     }),
     ...(segment && { segment }),
-    ...(city && { city }),
+    ...(city && { city: { contains: city, mode: "insensitive" } }),
     ...(objectType && { objectTypes: { has: objectType } }),
     ...(verifiedOnly && { verified: true }),
   };
