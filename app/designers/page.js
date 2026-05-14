@@ -108,6 +108,12 @@ export default async function DesignersPage({ searchParams }) {
             <div className="mb-8">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-on-surface mb-3">Сегмент</h3>
               <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <span className={`text-sm px-4 py-1.5 rounded-full border cursor-pointer transition-all ${!segment ? "border-primary bg-primary text-white font-semibold" : "border-slate-200 text-on-surface-variant hover:border-slate-400"}`}>
+                    Все
+                  </span>
+                  <input type="radio" name="segment" value="" defaultChecked={!segment} className="sr-only" />
+                </label>
                 {SEGMENTS.map((s) => (
                   <label key={s} className="flex items-center gap-2 cursor-pointer group">
                     <span className={`text-sm px-4 py-1.5 rounded-full border cursor-pointer transition-all ${segment === s ? "border-primary bg-primary text-white font-semibold" : "border-slate-200 text-on-surface-variant hover:border-slate-400"}`}>
